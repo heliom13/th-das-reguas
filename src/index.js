@@ -18,6 +18,17 @@ const banco = process.env.DATABASE_URL
   : criarBancoMemoria();
 await banco.iniciar();
 
+// Troca de banco: com MIGRAR_DE apontando para o banco antigo, copia os dados a cada
+// subida (o que já existe no novo é mantido). Depois de conferir, remova a variável.
+const bancoAntigo = process.env.MIGRAR_DE;
+if (bancoAntigo && bancoAntigo !== process.env.DATABASE_URL && banco.copiarDe) {
+  try {
+    log.info('Cópia do banco antigo:', JSON.stringify(await banco.copiarDe(bancoAntigo)));
+  } catch (erro) {
+    log.error('Cópia do banco antigo falhou:', erro.message);
+  }
+}
+
 let app;
 const whatsapp = criarWhatsApp({ banco, log, aoMudar: (s) => app?.avisar('whatsapp', s) });
 const agenda = criarAgenda({ banco, whatsapp, log, aoMudar: () => app?.avisar('whatsapp', whatsapp.status()) });

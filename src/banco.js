@@ -113,6 +113,50 @@ export async function criarBancoPostgres(url, { log = console } = {}) {
     async iniciar() {
       await pool.query(MIGRACAO);
     },
+
+    // Copia os dados de outro banco (troca de provedor). Pode rodar mais de uma vez:
+    // o que já existe aqui é mantido e um pedido cujo número do dia já foi usado
+    // entra com o próximo número livre.
+    async copiarDe(urlAntiga) {
+      const antigo = new pg.Client({
+        connectionString: urlAntiga,
+        ssl: /localhost|127\.0\.0\.1/.test(urlAntiga) ? false : { rejectUnauthorized: false },
+        connectionTimeoutMillis: 15_000,
+      });
+      antigo.on('error', () => {});
+      await antigo.connect();
+      try {
+        const copiados = { pedidos: 0, configuracoes: 0, whatsapp_sessao: 0, relatorios: 0 };
+        const pedidos = await antigo.query('SELECT * FROM pedidos ORDER BY dia, numero');
+        for (const p of pedidos.rows) {
+          const r = await pool.query(
+            `INSERT INTO pedidos (id, dia, numero, criado_em, situacao, dados)
+             SELECT $1, $2,
+                    CASE WHEN EXISTS (SELECT 1 FROM pedidos WHERE dia = $2 AND numero = $3)
+                         THEN (SELECT MAX(numero) + 1 FROM pedidos WHERE dia = $2) ELSE $3 END,
+                    $4, $5, $6
+             WHERE NOT EXISTS (SELECT 1 FROM pedidos WHERE id = $1)`,
+            [p.id, p.dia, p.numero, p.criado_em, p.situacao, p.dados],
+          );
+          copiados.pedidos += r.rowCount;
+        }
+        const tabelas = [
+          ['configuracoes', 'SELECT chave, valor FROM configuracoes', 'INSERT INTO configuracoes (chave, valor) VALUES ($1, $2)', (l) => [l.chave, JSON.stringify(l.valor)]],
+          ['whatsapp_sessao', 'SELECT chave, valor FROM whatsapp_sessao', 'INSERT INTO whatsapp_sessao (chave, valor) VALUES ($1, $2)', (l) => [l.chave, l.valor]],
+          ['relatorios', 'SELECT dia, enviado_em, texto FROM relatorios', 'INSERT INTO relatorios (dia, enviado_em, texto) VALUES ($1, $2, $3)', (l) => [l.dia, l.enviado_em, l.texto]],
+        ];
+        for (const [tabela, consulta, insercao, valores] of tabelas) {
+          const { rows } = await antigo.query(consulta);
+          for (const linha of rows) {
+            const r = await pool.query(`${insercao} ON CONFLICT DO NOTHING`, valores(linha));
+            copiados[tabela] += r.rowCount;
+          }
+        }
+        return { ...copiados, pedidosNoBancoAntigo: pedidos.rowCount };
+      } finally {
+        await antigo.end().catch(() => {});
+      }
+    },
     async fechar() {
       await pool.end().catch(() => {});
     },
