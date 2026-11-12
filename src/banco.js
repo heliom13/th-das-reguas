@@ -20,6 +20,12 @@ CREATE TABLE IF NOT EXISTS relatorios (
   enviado_em timestamptz NOT NULL DEFAULT now(),
   texto text NOT NULL
 );
+-- Sem políticas: só o dono das tabelas (o próprio sistema) lê e grava. Fecha o acesso
+-- por APIs automáticas do provedor (ex.: a Data API do Supabase).
+ALTER TABLE pedidos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE configuracoes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_sessao ENABLE ROW LEVEL SECURITY;
+ALTER TABLE relatorios ENABLE ROW LEVEL SECURITY;
 `;
 
 // Número fixo da trava que garante uma única conexão com o WhatsApp.
