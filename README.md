@@ -34,9 +34,10 @@ Sem `DATABASE_URL` os dados ficam em memória (somem ao reiniciar).
 
 ## Render
 
-Web Service Node (`render.yaml`): build `npm ci`, start `npm start`, health check `/saude`, Postgres `th-das-reguas-db`.
+Web Service Node (`render.yaml`): build `npm ci`, start `npm start`, health check `/saude`.
 
-- Plano gratuito do banco expira 30 dias após a criação: antes disso, mude o banco para um plano pago ou migre os dados.
+- Banco: **Supabase** (plano grátis, região us-east-1). Use o endereço do **Session pooler** (porta 5432): o Render não acessa o endereço direto (só IPv6) e o "Transaction pooler" não mantém a trava do WhatsApp. A Data API do Supabase fica desligada e as tabelas têm RLS ligado (só o sistema lê e grava).
+- Troca de banco: defina `MIGRAR_DE` com o endereço do banco antigo e `DATABASE_URL` com o novo; a cada subida o sistema copia os dados, sem duplicar. Depois de conferir, remova `MIGRAR_DE`.
 - Em cada deploy a cópia nova só conecta o WhatsApp depois que a antiga sai (trava no Postgres), para a sessão não ser corrompida.
 
 ## WhatsApp do robô
