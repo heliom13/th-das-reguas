@@ -1,15 +1,21 @@
 services:
   - type: web
     name: th-das-reguas
-    runtime: static
+    runtime: node
+    plan: free
     branch: main
-    buildCommand: ""
-    staticPublishPath: .
-    pullRequestPreviewsEnabled: false
-    headers:
-      - path: /img/*
-        name: Cache-Control
-        value: public, max-age=604800
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /saude
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false
+      - key: PAINEL_SENHA
+        sync: false
+      - key: SEGREDO_SESSAO
+        generateValue: true

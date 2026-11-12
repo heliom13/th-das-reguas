@@ -1,0 +1,21 @@
+{
+  "name": "th-das-reguas",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Site e pedidos da TH das Réguas",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pg": "^8.23.1",
+    "pino": "^9.14.0",
+    "qrcode": "^1.5.4"
+  }
+}

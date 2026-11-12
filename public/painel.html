@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#04110F">
+<title>Painel de pedidos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="painel.css">
+</head>
+<body>
+<div class="streaks" aria-hidden="true"></div>
+
+<main id="login" class="login" hidden>
+  <form id="login-form" class="card">
+    <p class="logo">TH das <span>Réguas</span></p>
+    <h1>Painel de pedidos</h1>
+    <label class="field"><span>Senha</span><input type="password" name="senha" autocomplete="current-password" required></label>
+    <p class="erro" id="login-erro" role="alert" hidden></p>
+    <button class="btn btn-amber" type="submit">Entrar</button>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <header class="topo">
+    <div class="wrap barra">
+      <p class="logo">TH das <span>Réguas</span> <small>Pedidos</small></p>
+      <div class="acoes">
+        <label class="dia"><span class="sr">Dia</span><input type="date" id="dia"></label>
+        <button class="btn btn-ghost btn-sm" id="sair" type="button">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="aviso" id="aviso" role="status" hidden></p>
+
+    <section aria-labelledby="t-resumo">
+      <div class="titulo">
+        <h2 id="t-resumo">Resumo <span id="t-dia"></span></h2>
+        <span class="ao-vivo" id="ao-vivo">ao vivo</span>
+      </div>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <div class="colunas">
+      <section aria-labelledby="t-pedidos">
+        <div class="titulo">
+          <h2 id="t-pedidos">Pedidos</h2>
+          <div class="filtros" role="group" aria-label="Filtrar pedidos">
+            <button type="button" class="chip" data-filtro="todos" aria-pressed="true">Todos</button>
+            <button type="button" class="chip" data-filtro="loja" aria-pressed="false">Retirada</button>
+            <button type="button" class="chip" data-filtro="entrega" aria-pressed="false">Entrega</button>
+          </div>
+        </div>
+        <div id="pedidos" class="pedidos"></div>
+      </section>
+
+      <aside>
+        <section class="card" aria-labelledby="t-rel">
+          <h2 id="t-rel">Relatório do dia</h2>
+          <p class="sub" id="rel-status"></p>
+          <pre class="relatorio" id="rel-texto"></pre>
+          <div class="linha">
+            <button class="btn btn-ghost" type="button" id="rel-copiar">Copiar</button>
+            <button class="btn btn-mint" type="button" id="rel-enviar">Enviar no grupo agora</button>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="t-wa">
+          <h2 id="t-wa">WhatsApp do robô</h2>
+          <p class="estado" id="wa-estado"></p>
+          <p class="sub" id="wa-erro" hidden></p>
+          <div id="wa-qr" class="qr" hidden>
+            <img alt="QR Code para conectar o WhatsApp do robô" width="240" height="240">
+            <ol>
+              <li>No celular do <b>robô</b>, abra o WhatsApp.</li>
+              <li>Toque em <b>⋮ → Aparelhos conectados → Conectar aparelho</b>.</li>
+              <li>Aponte a câmera para este código.</li>
+            </ol>
+          </div>
+          <div class="linha">
+            <button class="btn btn-amber" type="button" id="wa-conectar">Conectar</button>
+            <button class="btn btn-ghost" type="button" id="wa-desconectar" hidden>Desconectar</button>
+          </div>
+
+          <form id="wa-grupo" class="sub-form" hidden>
+            <h3>Grupo do relatório</h3>
+            <p class="sub" id="grupo-atual"></p>
+            <label class="field"><span>WhatsApp do dono</span><input name="telefone" type="tel" inputmode="tel" placeholder="(98) 90000-0000" required></label>
+            <button class="btn btn-mint" type="submit">Criar grupo com o dono</button>
+          </form>
+
+          <form id="rel-config" class="sub-form">
+            <h3>Envio automático</h3>
+            <label class="toggle"><input type="checkbox" name="ativo"> <span>Enviar o relatório todo dia</span></label>
+            <label class="field"><span>Horário (São Luís)</span><input type="time" name="horario" required></label>
+            <button class="btn btn-ghost" type="submit">Salvar horário</button>
+          </form>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="painel.js" type="module"></script>
+</body>
+</html>

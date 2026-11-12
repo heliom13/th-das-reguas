@@ -188,6 +188,24 @@ section{padding-block:80px}
 .price-now em{font-style:normal;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;background:var(--amber);color:var(--amber-ink);padding:3px 8px;border-radius:999px;margin-top:4px}
 .buy-foot{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .buy-foot b{font-family:var(--f-display);font-weight:900;font-size:2.1rem;color:var(--amber);line-height:1}
+.field{display:grid;gap:6px}
+.field input{font:500 1rem var(--f-body);color:var(--ink);background:var(--black);border:1.5px solid #2a2a2e;border-radius:12px;padding:13px 14px;width:100%}
+.field input:focus{border-color:var(--amber);outline:none}
+.field input::placeholder{color:#6b6b72}
+.group{border:0;padding:0;margin:0;display:grid;gap:10px}
+.group legend{padding:0;margin-bottom:10px}
+.pays{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pay{position:relative;cursor:pointer}
+.pay input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.pay span{display:block;text-align:center;padding:12px 6px;border:1.5px solid #2a2a2e;border-radius:12px;font-weight:700}
+.pay input:checked+span{border-color:var(--amber);background:rgba(243,154,45,.08);color:var(--amber)}
+.pay input:focus-visible+span{outline:3px solid var(--amber);outline-offset:2px}
+.isca{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.form-erro{background:rgba(220,60,60,.12);border:1px solid rgba(220,60,60,.5);color:#ffb4b4;border-radius:10px;padding:10px 12px;font-weight:600;font-size:.92rem}
+.buy button:disabled{opacity:.6;cursor:wait}
+.done{text-align:left}
+.done:focus{outline:none}
+.done h3 span{color:var(--amber)}
 @media (max-width:860px){.product,.shop-grid{grid-template-columns:1fr}.box-img{max-height:420px}.buy{position:static}}
 
 /* Rodapé */
@@ -397,26 +415,59 @@ footer ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
             <li><div><b>Enxágue e matize</b><span>Lave ainda com a touca, retire e finalize com matizador.</span></div></li>
           </ol>
         </div>
-        <form class="buy" id="buy">
-          <h3>Monte seu pedido</h3>
+        <form class="buy" id="buy" novalidate>
+          <h3>Faça seu pedido</h3>
           <div class="price-tag">
-            <div><b>Caixa de touca Leon Barber</b><small>Touca para reflexo + <strong class="gift-txt">agulha de brinde</strong></small></div>
-            <div class="price-now"><s>R$ 140</s><span>R$ 135</span><em>Promoção</em></div>
+            <div><b id="prod-nome">Caixa de touca Leon Barber</b><small>Touca para reflexo + <strong class="gift-txt">agulha de brinde</strong></small></div>
+            <div class="price-now"><s id="prod-antigo">R$ 140</s><span id="prod-preco">R$ 135</span><em>Promoção</em></div>
           </div>
-          <p class="step-label" style="margin:0">Como receber</p>
-          <label class="opt" for="p1"><input type="radio" name="prod" id="p1" value="0" checked><div><b>Retirar na barbearia</b><small>Sem custo, é só passar lá</small></div><span class="mono">Grátis</span></label>
-          <label class="opt" for="p2"><input type="radio" name="prod" id="p2" value="1"><div><b>Entrega</b><small>Levamos até você</small></div><span class="mono">+ R$ 10</span></label>
+
           <div class="buy-foot">
+            <p class="step-label" style="margin:0">Quantidade</p>
             <div class="qty" aria-label="Quantidade">
               <button type="button" id="q-minus" aria-label="Diminuir">−</button>
               <output id="q-val">1</output>
               <button type="button" id="q-plus" aria-label="Aumentar">+</button>
             </div>
-            <div style="text-align:right"><small class="note">Total</small><br><b id="buy-total">R$ 135</b></div>
           </div>
-          <a class="btn btn-amber" id="buy-wa" href="#" target="_blank" rel="noopener">Pedir pelo WhatsApp</a>
-          <p class="note">Entrega por R$ 10 ou retirada grátis na barbearia.</p>
+
+          <label class="field"><span class="step-label">Seu nome</span><input name="nome" autocomplete="name" maxlength="80" required></label>
+          <label class="field"><span class="step-label">Seu WhatsApp</span><input name="telefone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(98) 90000-0000" maxlength="20" required></label>
+
+          <fieldset class="group">
+            <legend class="step-label">Como receber</legend>
+            <label class="opt"><input type="radio" name="retirada" value="loja" checked><div><b>Retirar na barbearia</b><small>Sem custo, é só passar lá</small></div><span class="mono">Grátis</span></label>
+            <label class="opt"><input type="radio" name="retirada" value="entrega"><div><b>Entrega</b><small>Levamos até você</small></div><span class="mono" id="taxa-txt">+ R$ 10</span></label>
+          </fieldset>
+          <label class="field" id="campo-endereco" hidden><span class="step-label">Endereço de entrega</span><input name="endereco" autocomplete="street-address" maxlength="200" placeholder="Rua, número, bairro e referência"></label>
+
+          <fieldset class="group">
+            <legend class="step-label">Forma de pagamento</legend>
+            <div class="pays">
+              <label class="pay"><input type="radio" name="pagamento" value="pix" checked><span>Pix</span></label>
+              <label class="pay"><input type="radio" name="pagamento" value="cartao"><span>Cartão</span></label>
+              <label class="pay"><input type="radio" name="pagamento" value="dinheiro"><span>Dinheiro</span></label>
+            </div>
+          </fieldset>
+          <label class="field" id="campo-troco" hidden><span class="step-label">Troco para quanto? (opcional)</span><input name="troco" inputmode="decimal" placeholder="Ex.: 200"></label>
+
+          <input name="site" class="isca" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+          <div class="buy-foot">
+            <small class="note">Total</small>
+            <b id="buy-total">R$ 135</b>
+          </div>
+          <p class="form-erro" id="buy-erro" role="alert" hidden></p>
+          <button class="btn btn-amber" id="buy-enviar" type="submit">Fazer pedido</button>
+          <p class="note">O pagamento é feito na retirada ou na entrega. A confirmação vem pelo WhatsApp.</p>
         </form>
+        <div class="buy done" id="buy-ok" hidden tabindex="-1">
+          <p class="eyebrow">Pedido recebido</p>
+          <h3>Pedido <span id="ok-num"></span> anotado!</h3>
+          <p class="lead" id="ok-txt"></p>
+          <a class="btn btn-mint" id="ok-wa" href="#" target="_blank" rel="noopener">Falar com a barbearia no WhatsApp</a>
+          <button class="btn btn-ghost" type="button" id="ok-novo">Fazer outro pedido</button>
+        </div>
       </div>
     </div>
   </section>
@@ -518,20 +569,67 @@ document.querySelectorAll("[data-course]").forEach(a=>{
   a.target="_blank"; a.rel="noopener";
 });
 
-// Loja
-const TOUCA = 135, ENTREGA = 10;
-let qty=1;
+// Loja: o pedido é salvo no servidor; preço e total são recalculados lá.
+const loja = { produto: null, taxa: 10, max: 20 };
+let qty = 1;
+const buy = document.getElementById("buy");
+const campo = n => buy.elements[n];
+const valor = n => (buy.querySelector(`input[name="${n}"]:checked`) || {}).value;
+fetch("/api/catalogo").then(r => r.ok ? r.json() : null).then(c => {
+  if (!c || !c.produtos.length) return;
+  loja.produto = c.produtos[0]; loja.taxa = c.taxaEntrega; loja.max = c.maxQuantidade;
+  document.getElementById("prod-nome").textContent = loja.produto.nome;
+  document.getElementById("prod-preco").textContent = brl(loja.produto.preco);
+  document.getElementById("prod-antigo").textContent = loja.produto.precoAntigo ? brl(loja.produto.precoAntigo) : "";
+  document.getElementById("taxa-txt").textContent = "+ " + brl(loja.taxa);
+  renderBuy();
+}).catch(() => {});
 function renderBuy(){
-  const entrega = document.querySelector('input[name="prod"]:checked').value === "1";
-  const total = TOUCA*qty + (entrega ? ENTREGA : 0);
-  document.getElementById("q-val").textContent=qty;
-  document.getElementById("buy-total").textContent=brl(total);
-  document.getElementById("buy-wa").href=wa(`Olá! Quero comprar:\n• ${qty}x Caixa de touca Leon Barber (${brl(TOUCA)} cada) + agulha de brinde\n• ${entrega ? "Entrega (+ " + brl(ENTREGA) + ")\nEndereço: " : "Vou retirar na barbearia"}\nTotal: ${brl(total)}`);
+  const preco = loja.produto ? loja.produto.preco : 135;
+  const entrega = valor("retirada") === "entrega";
+  document.getElementById("q-val").textContent = qty;
+  document.getElementById("buy-total").textContent = brl(preco*qty + (entrega ? loja.taxa : 0));
+  document.getElementById("campo-endereco").hidden = !entrega;
+  document.getElementById("campo-troco").hidden = valor("pagamento") !== "dinheiro";
 }
-document.getElementById("buy").addEventListener("change",renderBuy);
-document.getElementById("buy").addEventListener("submit",e=>e.preventDefault());
-document.getElementById("q-minus").onclick=()=>{qty=Math.max(1,qty-1);renderBuy()};
-document.getElementById("q-plus").onclick=()=>{qty=Math.min(20,qty+1);renderBuy()};
+buy.addEventListener("change", renderBuy);
+document.getElementById("q-minus").onclick = () => { qty = Math.max(1, qty-1); renderBuy(); };
+document.getElementById("q-plus").onclick = () => { qty = Math.min(loja.max, qty+1); renderBuy(); };
+function erroBuy(t){ const e = document.getElementById("buy-erro"); e.textContent = t || ""; e.hidden = !t; }
+buy.addEventListener("submit", async e => {
+  e.preventDefault();
+  const dados = {
+    nome: campo("nome").value, telefone: campo("telefone").value, produto: loja.produto ? loja.produto.id : "touca-leon",
+    quantidade: qty, pagamento: valor("pagamento"), retirada: valor("retirada"),
+    endereco: campo("endereco").value, troco: campo("troco").value, site: campo("site").value
+  };
+  if (dados.nome.trim().length < 2) { erroBuy("Informe seu nome."); return campo("nome").focus(); }
+  if (dados.telefone.replace(/\D/g,"").length < 10) { erroBuy("Informe seu WhatsApp com DDD."); return campo("telefone").focus(); }
+  if (dados.retirada === "entrega" && dados.endereco.trim().length < 5) { erroBuy("Informe o endereço de entrega."); return campo("endereco").focus(); }
+  erroBuy("");
+  const botao = document.getElementById("buy-enviar");
+  botao.disabled = true; botao.textContent = "Enviando…";
+  try {
+    const r = await fetch("/api/pedidos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados) });
+    const resp = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(resp.erro || "Não foi possível enviar. Tente de novo.");
+    const pag = { pix: "Pix", cartao: "cartão", dinheiro: "dinheiro" }[dados.pagamento];
+    const receber = dados.retirada === "entrega" ? "entrega em " + dados.endereco.trim() : "retirada na barbearia";
+    document.getElementById("ok-num").textContent = "#" + resp.numero;
+    document.getElementById("ok-txt").textContent = `${qty}x ${loja.produto ? loja.produto.nome : "touca"}, ${receber}, pagamento em ${pag}. Total ${brl(resp.total)}. Logo a barbearia fala com você.`;
+    document.getElementById("ok-wa").href = wa(`Olá! Fiz o pedido #${resp.numero} pelo site: ${qty}x touca de reflexo, ${receber}, pagamento em ${pag}. Meu nome: ${dados.nome.trim()}.`);
+    buy.hidden = true;
+    const ok = document.getElementById("buy-ok"); ok.hidden = false; ok.focus();
+  } catch (err) {
+    erroBuy(err.message === "Failed to fetch" ? "Sem conexão. Confira a internet e tente de novo." : err.message);
+  } finally {
+    botao.disabled = false; botao.textContent = "Fazer pedido";
+  }
+});
+document.getElementById("ok-novo").onclick = () => {
+  buy.reset(); qty = 1; renderBuy();
+  document.getElementById("buy-ok").hidden = true; buy.hidden = false;
+};
 renderBuy();
 
 let tt;
