@@ -22,38 +22,55 @@ CREATE TABLE IF NOT EXISTS relatorios (
 );
 `;
 
+// Número fixo da trava que garante uma única conexão com o WhatsApp.
+const TRAVA_WHATSAPP = 7311001;
+
 const montar = (linha) => ({
   ...linha.dados,
   id: linha.id,
-  dia: typeof linha.dia === 'string' ? linha.dia : linha.dia.toISOString().slice(0, 10),
+  dia: linha.dia,
   numero: linha.numero,
   criadoEm: new Date(linha.criado_em).toISOString(),
   situacao: linha.situacao,
 });
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function criarBancoMemoria() {
   const pedidos = [];
   const config = new Map();
   const sessao = new Map();
   const relatorios = new Map();
+  const ordenar = (a, b) => (a.dia === b.dia ? a.numero - b.numero : a.dia < b.dia ? -1 : 1);
   return {
     tipo: 'memoria',
     async iniciar() {},
     async fechar() {},
+    criarTrava() {
+      return { async tentar() { return true; }, aoPerder() {}, async liberar() {} };
+    },
     async criarPedido(dados, dia, agora = new Date()) {
-      const numero = pedidos.filter((p) => p.dia === dia).length + 1;
+      const numero = Math.max(0, ...pedidos.filter((p) => p.dia === dia).map((p) => p.numero)) + 1;
       const pedido = { ...dados, id: randomUUID(), dia, numero, criadoEm: agora.toISOString(), situacao: 'novo' };
       pedidos.push(pedido);
       return structuredClone(pedido);
     },
     async listarPedidos(dia) {
-      return structuredClone(pedidos.filter((p) => p.dia === dia).sort((a, b) => a.numero - b.numero));
+      return structuredClone(pedidos.filter((p) => p.dia === dia).sort(ordenar));
+    },
+    async listarPedidosPeriodo(de, ate) {
+      return structuredClone(pedidos.filter((p) => p.dia >= de && p.dia <= ate).sort(ordenar));
     },
     async mudarSituacao(id, situacao) {
       const p = pedidos.find((x) => x.id === id);
       if (!p) return null;
       p.situacao = situacao;
       return structuredClone(p);
+    },
+    async apagarCancelado(id) {
+      const i = pedidos.findIndex((x) => x.id === id && x.situacao === 'cancelado');
+      if (i < 0) return null;
+      return pedidos.splice(i, 1)[0];
     },
     async ler(chave) {
       return config.has(chave) ? structuredClone(config.get(chave)) : null;
@@ -82,16 +99,14 @@ export function criarBancoMemoria() {
   };
 }
 
-export async function criarBancoPostgres(url) {
+export async function criarBancoPostgres(url, { log = console } = {}) {
   const { default: pg } = await import('pg');
   pg.types.setTypeParser(1082, (v) => v); // date como texto, sem fuso
   const local = /localhost|127\.0\.0\.1/.test(url);
-  const pool = new pg.Pool({
-    connectionString: url,
-    ssl: local ? false : { rejectUnauthorized: false },
-    max: 5,
-    idleTimeoutMillis: 30_000,
-  });
+  const ssl = local ? false : { rejectUnauthorized: false };
+  const pool = new pg.Pool({ connectionString: url, ssl, max: 5, idleTimeoutMillis: 30_000, keepAlive: true });
+  // Sem este ouvinte, uma conexão ociosa derrubada pelo banco encerraria o processo.
+  pool.on('error', (erro) => log.error?.('Banco (conexão ociosa):', erro.message));
 
   return {
     tipo: 'postgres',
@@ -99,8 +114,51 @@ export async function criarBancoPostgres(url) {
       await pool.query(MIGRACAO);
     },
     async fechar() {
-      await pool.end();
+      await pool.end().catch(() => {});
     },
+
+    // Trava de sessão do Postgres: só quem a detém conecta o WhatsApp.
+    // Ela some sozinha se o processo morrer ou a conexão cair.
+    criarTrava() {
+      let cliente = null;
+      let pulso = null;
+      let aoPerder = () => {};
+      const soltar = (c) => {
+        if (cliente !== c) return;
+        cliente = null;
+        clearInterval(pulso);
+        c.end().catch(() => {});
+        aoPerder();
+      };
+      return {
+        async tentar() {
+          if (cliente) return true;
+          const c = new pg.Client({ connectionString: url, ssl, keepAlive: true });
+          c.on('error', () => soltar(c));
+          await c.connect();
+          const { rows } = await c.query('SELECT pg_try_advisory_lock($1) AS ok', [TRAVA_WHATSAPP]);
+          if (!rows[0].ok) {
+            await c.end().catch(() => {});
+            return false;
+          }
+          cliente = c;
+          c.on('end', () => soltar(c));
+          pulso = setInterval(() => c.query('SELECT 1').catch(() => soltar(c)), 60_000);
+          return true;
+        },
+        aoPerder(fn) {
+          aoPerder = fn;
+        },
+        async liberar() {
+          const c = cliente;
+          if (!c) return;
+          cliente = null;
+          clearInterval(pulso);
+          await c.end().catch(() => {});
+        },
+      };
+    },
+
     async criarPedido(dados, dia, agora = new Date()) {
       for (let tentativa = 0; tentativa < 5; tentativa++) {
         try {
@@ -121,8 +179,18 @@ export async function criarBancoPostgres(url) {
       const { rows } = await pool.query('SELECT * FROM pedidos WHERE dia = $1 ORDER BY numero', [dia]);
       return rows.map(montar);
     },
+    async listarPedidosPeriodo(de, ate) {
+      const { rows } = await pool.query('SELECT * FROM pedidos WHERE dia BETWEEN $1 AND $2 ORDER BY dia, numero', [de, ate]);
+      return rows.map(montar);
+    },
     async mudarSituacao(id, situacao) {
+      if (!UUID.test(id)) return null;
       const { rows } = await pool.query('UPDATE pedidos SET situacao = $2 WHERE id = $1 RETURNING *', [id, situacao]);
+      return rows[0] ? montar(rows[0]) : null;
+    },
+    async apagarCancelado(id) {
+      if (!UUID.test(id)) return null;
+      const { rows } = await pool.query("DELETE FROM pedidos WHERE id = $1 AND situacao = 'cancelado' RETURNING *", [id]);
       return rows[0] ? montar(rows[0]) : null;
     },
     async ler(chave) {

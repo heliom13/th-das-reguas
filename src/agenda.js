@@ -3,7 +3,7 @@
 import { diaLocal, horaLocal } from './pedidos.js';
 import { textoDoRelatorio } from './resumo.js';
 
-export const PADRAO_RELATORIO = { horario: '18:00', ativo: true };
+export const PADRAO_RELATORIO = { horario: '18:00', ativo: true, avisarPedido: false };
 
 export async function configRelatorio(banco) {
   return { ...PADRAO_RELATORIO, ...(await banco.ler('relatorio')) };

@@ -6,10 +6,15 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04110F">
 <title>Painel de pedidos</title>
+<link rel="icon" href="/icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icone-180.png">
+<link rel="manifest" href="/painel.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pedidos TH">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="painel.css">
+<link rel="stylesheet" href="/painel.css">
 </head>
 <body>
 <div class="streaks" aria-hidden="true"></div>
@@ -28,50 +33,134 @@
   <header class="topo">
     <div class="wrap barra">
       <p class="logo">TH das <span>Réguas</span> <small>Pedidos</small></p>
-      <div class="acoes">
-        <label class="dia"><span class="sr">Dia</span><input type="date" id="dia"></label>
-        <button class="btn btn-ghost btn-sm" id="sair" type="button">Sair</button>
-      </div>
+      <button class="btn btn-ghost btn-sm" id="sair" type="button">Sair</button>
     </div>
+    <nav class="wrap abas" role="tablist" aria-label="Seções do painel">
+      <button type="button" role="tab" id="aba-pedidos" data-aba="pedidos" aria-controls="sec-pedidos" aria-selected="true">Pedidos</button>
+      <button type="button" role="tab" id="aba-relatorios" data-aba="relatorios" aria-controls="sec-relatorios" aria-selected="false" tabindex="-1">Relatórios</button>
+      <button type="button" role="tab" id="aba-produtos" data-aba="produtos" aria-controls="sec-produtos" aria-selected="false" tabindex="-1">Produtos</button>
+      <button type="button" role="tab" id="aba-whatsapp" data-aba="whatsapp" aria-controls="sec-whatsapp" aria-selected="false" tabindex="-1">WhatsApp <span class="ponto" id="wa-ponto" aria-hidden="true"></span></button>
+    </nav>
   </header>
 
-  <main class="wrap">
+  <main class="wrap conteudo">
     <p class="aviso" id="aviso" role="status" hidden></p>
 
-    <section aria-labelledby="t-resumo">
+    <!-- Pedidos do dia -->
+    <section id="sec-pedidos" role="tabpanel" aria-labelledby="aba-pedidos">
       <div class="titulo">
-        <h2 id="t-resumo">Resumo <span id="t-dia"></span></h2>
-        <span class="ao-vivo" id="ao-vivo">ao vivo</span>
+        <h2>Resumo <span id="t-dia"></span></h2>
+        <div class="navega-dia">
+          <button class="btn btn-ghost btn-sm" id="dia-ant" type="button" aria-label="Dia anterior">‹</button>
+          <input type="date" id="dia" aria-label="Escolher dia">
+          <button class="btn btn-ghost btn-sm" id="dia-prox" type="button" aria-label="Próximo dia">›</button>
+          <span class="ao-vivo" id="ao-vivo">ao vivo</span>
+        </div>
       </div>
       <div class="kpis" id="kpis"></div>
-    </section>
 
-    <div class="colunas">
-      <section aria-labelledby="t-pedidos">
-        <div class="titulo">
-          <h2 id="t-pedidos">Pedidos</h2>
-          <div class="filtros" role="group" aria-label="Filtrar pedidos">
-            <button type="button" class="chip" data-filtro="todos" aria-pressed="true">Todos</button>
-            <button type="button" class="chip" data-filtro="loja" aria-pressed="false">Retirada</button>
-            <button type="button" class="chip" data-filtro="entrega" aria-pressed="false">Entrega</button>
+      <div class="colunas">
+        <section aria-labelledby="t-pedidos">
+          <div class="titulo">
+            <h2 id="t-pedidos">Pedidos</h2>
+            <div class="filtros" role="group" aria-label="Filtrar pedidos">
+              <button type="button" class="chip" data-filtro="todos" aria-pressed="true">Todos</button>
+              <button type="button" class="chip" data-filtro="loja" aria-pressed="false">Retirada</button>
+              <button type="button" class="chip" data-filtro="entrega" aria-pressed="false">Entrega</button>
+            </div>
           </div>
-        </div>
-        <div id="pedidos" class="pedidos"></div>
-      </section>
-
-      <aside>
-        <section class="card" aria-labelledby="t-rel">
-          <h2 id="t-rel">Relatório do dia</h2>
-          <p class="sub" id="rel-status"></p>
-          <pre class="relatorio" id="rel-texto"></pre>
-          <div class="linha">
-            <button class="btn btn-ghost" type="button" id="rel-copiar">Copiar</button>
-            <button class="btn btn-mint" type="button" id="rel-enviar">Enviar no grupo agora</button>
-          </div>
+          <div id="pedidos" class="pedidos"></div>
         </section>
 
+        <aside>
+          <section class="card" aria-labelledby="t-rel">
+            <h2 id="t-rel">Relatório do dia</h2>
+            <p class="sub" id="rel-status"></p>
+            <pre class="relatorio" id="rel-texto"></pre>
+            <div class="linha">
+              <button class="btn btn-ghost" type="button" id="rel-copiar">Copiar</button>
+              <button class="btn btn-mint" type="button" id="rel-enviar">Enviar no grupo</button>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Relatórios por período -->
+    <section id="sec-relatorios" role="tabpanel" aria-labelledby="aba-relatorios" hidden>
+      <div class="titulo"><h2>Relatórios</h2></div>
+      <div class="periodo">
+        <div class="filtros" role="group" aria-label="Período">
+          <button type="button" class="chip" data-periodo="7" aria-pressed="false">7 dias</button>
+          <button type="button" class="chip" data-periodo="30" aria-pressed="false">30 dias</button>
+          <button type="button" class="chip" data-periodo="mes" aria-pressed="true">Este mês</button>
+          <button type="button" class="chip" data-periodo="mes-ant" aria-pressed="false">Mês passado</button>
+        </div>
+        <form id="per-form" class="per-datas">
+          <label><span>De</span><input type="date" name="de" required></label>
+          <label><span>Até</span><input type="date" name="ate" required></label>
+          <button class="btn btn-ghost btn-sm" type="submit">Ver</button>
+        </form>
+      </div>
+      <p class="sub" id="per-titulo"></p>
+      <div class="kpis" id="per-kpis"></div>
+
+      <section class="card grafico-card" aria-labelledby="t-grafico">
+        <h3 id="t-grafico">Vendas por dia</h3>
+        <div class="grafico" id="grafico"></div>
+      </section>
+
+      <div class="duas">
+        <section class="card" aria-labelledby="t-por-produto">
+          <h3 id="t-por-produto">Por produto</h3>
+          <ul class="barras" id="per-produtos"></ul>
+        </section>
+        <section class="card" aria-labelledby="t-por-pag">
+          <h3 id="t-por-pag">Por pagamento</h3>
+          <ul class="barras" id="per-pag"></ul>
+          <h3 class="mt">Recebimento</h3>
+          <ul class="barras" id="per-ret"></ul>
+        </section>
+      </div>
+
+      <section class="card" aria-labelledby="t-dia-a-dia">
+        <h3 id="t-dia-a-dia">Dia a dia</h3>
+        <div class="tabela-rolagem">
+          <table class="tabela" id="per-tabela">
+            <thead><tr><th scope="col">Dia</th><th scope="col" class="opcional">Clientes</th><th scope="col">Pedidos</th><th scope="col">Toucas</th><th scope="col">Valor</th></tr></thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <div class="linha acoes-rel">
+        <a class="btn btn-mint" id="per-csv" href="#">Baixar planilha (Excel)</a>
+        <button class="btn btn-ghost" type="button" id="per-imprimir">Imprimir</button>
+      </div>
+    </section>
+
+    <!-- Produtos -->
+    <section id="sec-produtos" role="tabpanel" aria-labelledby="aba-produtos" hidden>
+      <div class="titulo"><h2>Produtos</h2></div>
+      <p class="sub">Os produtos ativos aparecem no site; com mais de um, o cliente escolhe no pedido. Preço antigo é opcional e mostra o selo "Promoção". Mudar o preço não altera pedidos já feitos.</p>
+      <form id="cat-form" novalidate>
+        <div id="cat-lista" class="cat-lista"></div>
+        <button type="button" class="btn btn-ghost" id="cat-novo">+ Adicionar produto</button>
+        <div class="card taxa">
+          <label class="field"><span>Taxa de entrega (R$)</span><input name="taxaEntrega" inputmode="decimal" autocomplete="off"></label>
+        </div>
+        <p class="erro" id="cat-erro" role="alert" hidden></p>
+        <button class="btn btn-amber" type="submit">Salvar produtos</button>
+      </form>
+    </section>
+
+    <!-- WhatsApp -->
+    <section id="sec-whatsapp" role="tabpanel" aria-labelledby="aba-whatsapp" hidden>
+      <div class="titulo"><h2>WhatsApp do robô</h2></div>
+      <div class="duas">
         <section class="card" aria-labelledby="t-wa">
-          <h2 id="t-wa">WhatsApp do robô</h2>
+          <h3 id="t-wa">Conexão</h3>
           <p class="estado" id="wa-estado"></p>
           <p class="sub" id="wa-erro" hidden></p>
           <div id="wa-qr" class="qr" hidden>
@@ -82,31 +171,39 @@
               <li>Aponte a câmera para este código.</li>
             </ol>
           </div>
+          <p class="sub" id="wa-explica">Use um chip só para o robô. Ele manda o relatório no grupo com o dono, então o celular do dono apita normalmente.</p>
           <div class="linha">
             <button class="btn btn-amber" type="button" id="wa-conectar">Conectar</button>
             <button class="btn btn-ghost" type="button" id="wa-desconectar" hidden>Desconectar</button>
           </div>
+        </section>
 
-          <form id="wa-grupo" class="sub-form" hidden>
+        <section class="card">
+          <form id="wa-grupo">
             <h3>Grupo do relatório</h3>
             <p class="sub" id="grupo-atual"></p>
             <label class="field"><span>WhatsApp do dono</span><input name="telefone" type="tel" inputmode="tel" placeholder="(98) 90000-0000" required></label>
-            <button class="btn btn-mint" type="submit">Criar grupo com o dono</button>
+            <div class="linha">
+              <button class="btn btn-mint" type="submit">Criar grupo com o dono</button>
+              <button class="btn btn-ghost" type="button" id="wa-teste">Mandar teste</button>
+            </div>
           </form>
 
           <form id="rel-config" class="sub-form">
             <h3>Envio automático</h3>
-            <label class="toggle"><input type="checkbox" name="ativo"> <span>Enviar o relatório todo dia</span></label>
+            <label class="toggle"><input type="checkbox" name="ativo"> <span>Mandar o relatório do dia no grupo</span></label>
             <label class="field"><span>Horário (São Luís)</span><input type="time" name="horario" required></label>
-            <button class="btn btn-ghost" type="submit">Salvar horário</button>
+            <label class="toggle"><input type="checkbox" name="avisarPedido"> <span>Avisar no grupo a cada pedido novo</span></label>
+            <button class="btn btn-ghost" type="submit">Salvar</button>
           </form>
         </section>
-      </aside>
-    </div>
+      </div>
+    </section>
   </main>
 </div>
 
+<div class="dica" id="dica" role="tooltip" hidden></div>
 <div class="toast" id="toast" role="status" hidden></div>
-<script src="painel.js" type="module"></script>
+<script src="/painel.js" type="module"></script>
 </body>
 </html>

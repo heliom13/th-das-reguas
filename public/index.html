@@ -9,6 +9,8 @@
 <meta property="og:description" content="Corte, reflexo, cursos de barbeiro e touca de reflexo. Agende pelo WhatsApp.">
 <meta property="og:image" content="img/touca-detalhe.jpg">
 <title>TH das Réguas</title>
+<link rel="icon" href="/icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icone-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -417,10 +419,15 @@ footer ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
         </div>
         <form class="buy" id="buy" novalidate>
           <h3>Faça seu pedido</h3>
+          <fieldset class="group" id="produtos" hidden>
+            <legend class="step-label">Produto</legend>
+            <div id="produtos-lista" class="group"></div>
+          </fieldset>
           <div class="price-tag">
-            <div><b id="prod-nome">Caixa de touca Leon Barber</b><small>Touca para reflexo + <strong class="gift-txt">agulha de brinde</strong></small></div>
-            <div class="price-now"><s id="prod-antigo">R$ 140</s><span id="prod-preco">R$ 135</span><em>Promoção</em></div>
+            <div><b id="prod-nome">Caixa de touca Leon Barber</b><small id="prod-detalhe">Touca para reflexo + <strong class="gift-txt">agulha de brinde</strong></small></div>
+            <div class="price-now"><s id="prod-antigo">R$ 140</s><span id="prod-preco">R$ 135</span><em id="prod-promo">Promoção</em></div>
           </div>
+          <p class="form-erro" id="loja-fechada" hidden>Nenhum produto disponível no momento. Fale com a barbearia no WhatsApp.</p>
 
           <div class="buy-foot">
             <p class="step-label" style="margin:0">Quantidade</p>
@@ -570,19 +577,49 @@ document.querySelectorAll("[data-course]").forEach(a=>{
 });
 
 // Loja: o pedido é salvo no servidor; preço e total são recalculados lá.
-const loja = { produto: null, taxa: 10, max: 20 };
+const loja = { produtos: [], produto: null, taxa: 10, max: 20 };
+const DETALHE_ORIGINAL = document.getElementById("prod-detalhe").innerHTML;
 let qty = 1;
 const buy = document.getElementById("buy");
 const campo = n => buy.elements[n];
 const valor = n => (buy.querySelector(`input[name="${n}"]:checked`) || {}).value;
-fetch("/api/catalogo").then(r => r.ok ? r.json() : null).then(c => {
-  if (!c || !c.produtos.length) return;
-  loja.produto = c.produtos[0]; loja.taxa = c.taxaEntrega; loja.max = c.maxQuantidade;
-  document.getElementById("prod-nome").textContent = loja.produto.nome;
-  document.getElementById("prod-preco").textContent = brl(loja.produto.preco);
-  document.getElementById("prod-antigo").textContent = loja.produto.precoAntigo ? brl(loja.produto.precoAntigo) : "";
-  document.getElementById("taxa-txt").textContent = "+ " + brl(loja.taxa);
+function selecionar(p){
+  loja.produto = p;
+  document.getElementById("prod-nome").textContent = p.nome;
+  const det = document.getElementById("prod-detalhe");
+  if (p.id === "touca-leon" && p.detalhe === "Touca para reflexo + agulha de brinde") det.innerHTML = DETALHE_ORIGINAL;
+  else det.textContent = p.detalhe || "";
+  document.getElementById("prod-preco").textContent = brl(p.preco);
+  document.getElementById("prod-antigo").textContent = p.precoAntigo ? brl(p.precoAntigo) : "";
+  document.getElementById("prod-promo").hidden = !p.precoAntigo;
   renderBuy();
+}
+function desenharProdutos(){
+  const caixa = document.getElementById("produtos");
+  caixa.hidden = loja.produtos.length < 2;
+  document.getElementById("produtos-lista").replaceChildren(...loja.produtos.map(p => {
+    const l = document.createElement("label");
+    l.className = "opt";
+    l.innerHTML = '<input type="radio" name="produto"><div><b></b><small></small></div><span class="mono"></span>';
+    const r = l.querySelector("input");
+    r.value = p.id; r.checked = p === loja.produto;
+    r.addEventListener("change", () => selecionar(p));
+    l.querySelector("b").textContent = p.nome;
+    l.querySelector("small").textContent = p.detalhe || "";
+    l.querySelector(".mono").textContent = brl(p.preco);
+    return l;
+  }));
+}
+fetch("/api/catalogo").then(r => r.ok ? r.json() : null).then(c => {
+  if (!c) return;
+  loja.produtos = c.produtos; loja.taxa = c.taxaEntrega; loja.max = c.maxQuantidade;
+  document.getElementById("taxa-txt").textContent = loja.taxa ? "+ " + brl(loja.taxa) : "Grátis";
+  const fechada = !loja.produtos.length;
+  document.getElementById("loja-fechada").hidden = !fechada;
+  document.getElementById("buy-enviar").disabled = fechada;
+  if (fechada) return;
+  selecionar(loja.produtos[0]);
+  desenharProdutos();
 }).catch(() => {});
 function renderBuy(){
   const preco = loja.produto ? loja.produto.preco : 135;
@@ -598,8 +635,9 @@ document.getElementById("q-plus").onclick = () => { qty = Math.min(loja.max, qty
 function erroBuy(t){ const e = document.getElementById("buy-erro"); e.textContent = t || ""; e.hidden = !t; }
 buy.addEventListener("submit", async e => {
   e.preventDefault();
+  const produto = loja.produto || { id: "touca-leon", nome: "Caixa de touca Leon Barber" };
   const dados = {
-    nome: campo("nome").value, telefone: campo("telefone").value, produto: loja.produto ? loja.produto.id : "touca-leon",
+    nome: campo("nome").value, telefone: campo("telefone").value, produto: produto.id,
     quantidade: qty, pagamento: valor("pagamento"), retirada: valor("retirada"),
     endereco: campo("endereco").value, troco: campo("troco").value, site: campo("site").value
   };
@@ -616,18 +654,20 @@ buy.addEventListener("submit", async e => {
     const pag = { pix: "Pix", cartao: "cartão", dinheiro: "dinheiro" }[dados.pagamento];
     const receber = dados.retirada === "entrega" ? "entrega em " + dados.endereco.trim() : "retirada na barbearia";
     document.getElementById("ok-num").textContent = "#" + resp.numero;
-    document.getElementById("ok-txt").textContent = `${qty}x ${loja.produto ? loja.produto.nome : "touca"}, ${receber}, pagamento em ${pag}. Total ${brl(resp.total)}. Logo a barbearia fala com você.`;
-    document.getElementById("ok-wa").href = wa(`Olá! Fiz o pedido #${resp.numero} pelo site: ${qty}x touca de reflexo, ${receber}, pagamento em ${pag}. Meu nome: ${dados.nome.trim()}.`);
+    document.getElementById("ok-txt").textContent = `${qty}x ${produto.nome}, ${receber}, pagamento em ${pag}. Total ${brl(resp.total)}. Logo a barbearia fala com você.`;
+    document.getElementById("ok-wa").href = wa(`Olá! Fiz o pedido #${resp.numero} pelo site: ${qty}x ${produto.nome}, ${receber}, pagamento em ${pag}. Meu nome: ${dados.nome.trim()}.`);
     buy.hidden = true;
     const ok = document.getElementById("buy-ok"); ok.hidden = false; ok.focus();
   } catch (err) {
-    erroBuy(err.message === "Failed to fetch" ? "Sem conexão. Confira a internet e tente de novo." : err.message);
+    erroBuy(err instanceof TypeError ? "Sem conexão. Confira a internet e tente de novo." : err.message);
   } finally {
     botao.disabled = false; botao.textContent = "Fazer pedido";
   }
 });
 document.getElementById("ok-novo").onclick = () => {
-  buy.reset(); qty = 1; renderBuy();
+  buy.reset(); qty = 1;
+  if (loja.produtos.length) { selecionar(loja.produtos[0]); desenharProdutos(); }
+  renderBuy();
   document.getElementById("buy-ok").hidden = true; buy.hidden = false;
 };
 renderBuy();

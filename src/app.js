@@ -4,20 +4,25 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  CATALOGO, MAX_QUANTIDADE, PAGAMENTOS, RETIRADAS, SITUACOES, TAXA_ENTREGA, diaLocal, validarPedido,
+  CATALOGO_PADRAO, MAX_QUANTIDADE, PAGAMENTOS, RETIRADAS, SITUACOES, diaLocal, validarCatalogo, validarPedido,
 } from './pedidos.js';
-import { montarResumo, textoDoRelatorio } from './resumo.js';
+import { montarResumo, resumoPorDia, textoDoAviso, textoDoRelatorio } from './resumo.js';
 import { configRelatorio, enviarRelatorio } from './agenda.js';
+import { csvDosPedidos } from './exportar.js';
 import { criarLimite, lerCookie } from './sessao.js';
 
 const PUBLICO = fileURLToPath(new URL('../public/', import.meta.url));
+const RAIZ = PUBLICO.endsWith(sep) ? PUBLICO : PUBLICO + sep;
 const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8',
+  '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
+  '.txt': 'text/plain; charset=utf-8',
 };
 const DIA_VALIDO = /^\d{4}-\d{2}-\d{2}$/;
 const HORARIO_VALIDO = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MAX_DIAS_PERIODO = 366;
+const NOMES = { pagamentos: PAGAMENTOS, retiradas: RETIRADAS, situacoes: SITUACOES };
 
 class ErroHttp extends Error {
   constructor(status, mensagem) {
@@ -39,21 +44,41 @@ async function lerCorpo(req, limite = 10_000) {
   const partes = [];
   for await (const parte of req) {
     tamanho += parte.length;
-    if (tamanho > limite) throw new ErroHttp(413, 'Pedido grande demais.');
+    if (tamanho > limite) throw new ErroHttp(413, 'Dados grandes demais.');
     partes.push(parte);
   }
   try {
-    return JSON.parse(Buffer.concat(partes).toString('utf8') || '{}');
+    const corpo = JSON.parse(Buffer.concat(partes).toString('utf8') || '{}');
+    if (!corpo || typeof corpo !== 'object' || Array.isArray(corpo)) throw new Error();
+    return corpo;
   } catch {
     throw new ErroHttp(400, 'JSON inválido.');
   }
 }
 
-const ipDe = (req) => String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket.remoteAddress;
+// IP real do cliente atrás do Cloudflare/Render.
+const ipDe = (req) =>
+  req.headers['cf-connecting-ip'] ||
+  req.headers['true-client-ip'] ||
+  String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() ||
+  req.socket.remoteAddress;
+
+export async function lerCatalogo(banco) {
+  return (await banco.ler('catalogo')) ?? CATALOGO_PADRAO;
+}
+
+function periodo(url) {
+  const de = url.searchParams.get('de');
+  const ate = url.searchParams.get('ate');
+  if (!DIA_VALIDO.test(de ?? '') || !DIA_VALIDO.test(ate ?? '') || de > ate) throw new ErroHttp(400, 'Período inválido.');
+  const dias = (Date.parse(ate) - Date.parse(de)) / 86_400_000;
+  if (!(dias >= 0 && dias < MAX_DIAS_PERIODO)) throw new ErroHttp(400, `Escolha um período de até ${MAX_DIAS_PERIODO} dias.`);
+  return { de, ate };
+}
 
 export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new Date(), producao = false, log = console }) {
   const ouvintes = new Set();
-  const limitePedidos = criarLimite({ maximo: 8, janela: 10 * 60_000 });
+  const limitePedidos = criarLimite({ maximo: 20, janela: 10 * 60_000 });
   const limiteLogin = criarLimite({ maximo: 10, janela: 15 * 60_000 });
 
   function avisar(tipo, dados = {}) {
@@ -75,19 +100,32 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
     };
   }
 
+  // Aviso no grupo a cada pedido (opcional). Nunca atrasa nem derruba o pedido do cliente.
+  async function avisarNoGrupo(pedido) {
+    const { avisarPedido } = await configRelatorio(banco);
+    if (!avisarPedido || whatsapp.status().estado !== 'conectado') return;
+    const destino = await banco.ler('whatsapp');
+    if (destino?.grupoJid) await whatsapp.enviar(destino.grupoJid, textoDoAviso(pedido));
+  }
+
   async function servirArquivo(req, res, caminho) {
-    let relativo = decodeURIComponent(caminho);
+    let relativo;
+    try {
+      relativo = decodeURIComponent(caminho);
+    } catch {
+      throw new ErroHttp(400, 'Endereço inválido.');
+    }
+    if (relativo === '/painel' || relativo === '/painel/') relativo = '/painel.html';
     if (relativo.endsWith('/')) relativo += 'index.html';
-    if (relativo === '/painel') relativo = '/painel.html';
     const arquivo = normalize(join(PUBLICO, relativo));
-    if (!arquivo.startsWith(PUBLICO.endsWith(sep) ? PUBLICO : PUBLICO + sep)) throw new ErroHttp(404, 'Não encontrado.');
+    if (!arquivo.startsWith(RAIZ)) throw new ErroHttp(404, 'Não encontrado.');
     const info = await stat(arquivo).catch(() => null);
     if (!info?.isFile()) throw new ErroHttp(404, 'Não encontrado.');
     const tipo = TIPOS[extname(arquivo).toLowerCase()] ?? 'application/octet-stream';
-    const imagem = tipo.startsWith('image/');
     res.writeHead(200, {
       'Content-Type': tipo,
-      'Cache-Control': imagem ? 'public, max-age=604800' : 'no-cache',
+      'Content-Length': info.size,
+      'Cache-Control': tipo.startsWith('image/') ? 'public, max-age=604800' : 'no-cache',
     });
     if (req.method === 'HEAD') return res.end();
     res.end(await readFile(arquivo));
@@ -96,18 +134,25 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
   const rotas = {
     'GET /saude': async (req, res) => json(res, 200, { ok: true }),
 
-    'GET /api/catalogo': async (req, res) =>
-      json(res, 200, { produtos: CATALOGO, taxaEntrega: TAXA_ENTREGA, maxQuantidade: MAX_QUANTIDADE, pagamentos: PAGAMENTOS, retiradas: RETIRADAS }),
+    'GET /api/catalogo': async (req, res) => {
+      const { produtos, taxaEntrega } = await lerCatalogo(banco);
+      json(res, 200, {
+        produtos: produtos.filter((p) => p.ativo).map(({ id, nome, detalhe, preco, precoAntigo }) => ({ id, nome, detalhe, preco, precoAntigo })),
+        taxaEntrega,
+        maxQuantidade: MAX_QUANTIDADE,
+      });
+    },
 
     'POST /api/pedidos': async (req, res) => {
       if (!limitePedidos(ipDe(req))) throw new ErroHttp(429, 'Muitos pedidos seguidos. Tente de novo em alguns minutos.');
       const corpo = await lerCorpo(req);
-      if (corpo?.site) return json(res, 201, { ok: true }); // campo-isca preenchido por robôs
-      const { pedido, erros } = validarPedido(corpo);
+      if (corpo.site) return json(res, 201, { ok: true, numero: 0, total: 0 }); // campo-isca preenchido por robôs
+      const { pedido, erros } = validarPedido(corpo, await lerCatalogo(banco));
       if (erros) return json(res, 400, { erro: erros.join(' '), erros });
       const momento = agora();
       const salvo = await banco.criarPedido(pedido, diaLocal(momento), momento);
       avisar('pedido', { id: salvo.id, dia: salvo.dia });
+      avisarNoGrupo(salvo).catch((e) => log.error?.('Aviso de pedido no grupo:', e.message));
       json(res, 201, { ok: true, numero: salvo.numero, total: salvo.total });
     },
 
@@ -136,7 +181,7 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
         resumo: montarResumo(pedidos),
         texto: textoDoRelatorio(pedidos, dia),
         relatorio: await banco.relatorioEnviado(dia),
-        nomes: { pagamentos: PAGAMENTOS, retiradas: RETIRADAS, situacoes: SITUACOES },
+        nomes: NOMES,
       });
     },
 
@@ -149,8 +194,48 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
       json(res, 200, { ok: true });
     },
 
+    'POST /api/painel/apagar': async (req, res) => {
+      const { id } = await lerCorpo(req);
+      if (typeof id !== 'string') throw new ErroHttp(400, 'Pedido inválido.');
+      const pedido = await banco.apagarCancelado(id);
+      if (!pedido) throw new ErroHttp(400, 'Só dá para apagar pedido cancelado.');
+      avisar('pedido', { id, dia: pedido.dia });
+      json(res, 200, { ok: true });
+    },
+
+    'GET /api/painel/periodo': async (req, res, url) => {
+      const { de, ate } = periodo(url);
+      const pedidos = await banco.listarPedidosPeriodo(de, ate);
+      json(res, 200, { de, ate, resumo: montarResumo(pedidos), porDia: resumoPorDia(pedidos, de, ate), nomes: NOMES });
+    },
+
+    'GET /api/painel/exportar': async (req, res, url) => {
+      const { de, ate } = periodo(url);
+      const csv = csvDosPedidos(await banco.listarPedidosPeriodo(de, ate));
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="pedidos-${de}-a-${ate}.csv"`,
+        'Cache-Control': 'no-store',
+      });
+      res.end(csv);
+    },
+
+    'GET /api/painel/catalogo': async (req, res) => json(res, 200, await lerCatalogo(banco)),
+
+    'POST /api/painel/catalogo': async (req, res) => {
+      const { catalogo, erros } = validarCatalogo(await lerCorpo(req, 50_000));
+      if (erros) return json(res, 400, { erro: erros.join(' '), erros });
+      await banco.gravar('catalogo', catalogo);
+      json(res, 200, { ok: true, catalogo });
+    },
+
     'GET /api/painel/eventos': async (req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-store',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
       res.write('retry: 3000\n\n');
       ouvintes.add(res);
       const pulso = setInterval(() => res.write(': ok\n\n'), 25_000);
@@ -163,7 +248,9 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
     'GET /api/painel/whatsapp': async (req, res) => json(res, 200, await painelWhatsapp()),
 
     'POST /api/painel/whatsapp/conectar': async (req, res) => {
-      await whatsapp.conectar();
+      await whatsapp.conectar().catch((e) => {
+        throw new ErroHttp(409, e.message);
+      });
       json(res, 200, { ok: true });
     },
 
@@ -179,7 +266,9 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
       const grupo = await whatsapp.criarGrupo(digitos).catch((e) => {
         throw new ErroHttp(400, e.message);
       });
-      await banco.gravar('whatsapp', { grupoJid: grupo.jid, grupoNome: grupo.nome, numeroDono: digitos });
+      await banco.gravar('whatsapp', {
+        grupoJid: grupo.jid, grupoNome: grupo.nome, numeroDono: digitos, donoNoGrupo: grupo.donoNoGrupo, convite: grupo.convite,
+      });
       await whatsapp
         .enviar(grupo.jid, 'Olá! Este grupo vai receber o relatório de pedidos do site todo dia. ✅')
         .catch(() => {});
@@ -187,10 +276,22 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
       json(res, 200, { ok: true, grupo });
     },
 
+    'POST /api/painel/whatsapp/teste': async (req, res) => {
+      const destino = await banco.ler('whatsapp');
+      if (!destino?.grupoJid) throw new ErroHttp(400, 'Crie o grupo do relatório primeiro.');
+      await whatsapp.enviar(destino.grupoJid, '✅ Teste do robô de pedidos: tudo funcionando.').catch((e) => {
+        throw new ErroHttp(400, e.message);
+      });
+      json(res, 200, { ok: true });
+    },
+
     'POST /api/painel/relatorio': async (req, res) => {
-      const { horario, ativo } = await lerCorpo(req);
-      if (!HORARIO_VALIDO.test(horario ?? '') || typeof ativo !== 'boolean') throw new ErroHttp(400, 'Horário inválido.');
-      await banco.gravar('relatorio', { horario, ativo });
+      const { horario, ativo, avisarPedido = false } = await lerCorpo(req);
+      if (!HORARIO_VALIDO.test(horario ?? '') || typeof ativo !== 'boolean' || typeof avisarPedido !== 'boolean') {
+        throw new ErroHttp(400, 'Horário inválido.');
+      }
+      await banco.gravar('relatorio', { horario, ativo, avisarPedido });
+      avisar('whatsapp', whatsapp.status());
       json(res, 200, { ok: true });
     },
 
@@ -208,7 +309,12 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('X-Frame-Options', 'DENY');
-    const url = new URL(req.url, 'http://local');
+    let url;
+    try {
+      url = new URL(req.url, 'http://local');
+    } catch {
+      return json(res, 400, { erro: 'Endereço inválido.' });
+    }
     const chave = `${req.method} ${url.pathname}`;
     try {
       if (rotas[chave]) return await rotas[chave](req, res, url);
@@ -228,5 +334,6 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
   }
 
   const servidor = createServer(tratar);
+  servidor.requestTimeout = 30_000;
   return { servidor, avisar };
 }

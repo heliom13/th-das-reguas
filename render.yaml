@@ -1,8 +1,17 @@
+databases:
+  - name: th-das-reguas-db
+    databaseName: thdasreguas
+    user: thdasreguas
+    plan: free
+    region: virginia
+    postgresMajorVersion: "16"
+
 services:
   - type: web
     name: th-das-reguas
     runtime: node
     plan: free
+    region: virginia
     branch: main
     buildCommand: npm ci
     startCommand: npm start
@@ -13,8 +22,12 @@ services:
         value: production
       - key: NODE_VERSION
         value: "22"
+      - key: MANTER_ACORDADO
+        value: "1"
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: th-das-reguas-db
+          property: connectionString
       - key: PAINEL_SENHA
         sync: false
       - key: SEGREDO_SESSAO
