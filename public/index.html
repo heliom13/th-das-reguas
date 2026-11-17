@@ -515,9 +515,9 @@ footer ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
       <div>
         <h3>Horário</h3>
         <ul class="hours">
-          <li><span>Seg a sex</span><span class="mono">09h às 20h</span></li>
-          <li><span>Sábado</span><span class="mono">08h às 18h</span></li>
-          <li><span>Domingo</span><span>Fechado</span></li>
+          <li><span>Qui a sáb</span><span class="mono">09h às 12h</span></li>
+          <li><span></span><span class="mono">14h30 às 18h</span></li>
+          <li><span>Dom a qua</span><span>Fechado</span></li>
         </ul>
       </div>
       <div>
@@ -560,13 +560,15 @@ document.getElementById("menu").innerHTML = services.map(s =>
 // Agendamento
 const state = {serv:0, day:0, time:null};
 const DOW = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+// Atendimento só de quinta a sábado, das 9h às 12h e das 14h30 às 18h (próximas duas semanas)
+const DIAS_DE_ATENDIMENTO = [4,5,6];
 const days = [];
 for (let i=0, d=new Date(); days.length<6; i++){
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()+i);
-  if (x.getDay()!==0) days.push(x);
+  if (DIAS_DE_ATENDIMENTO.includes(x.getDay())) days.push(x);
 }
-const times = ["09:00","10:00","11:00","13:30","14:30","15:30","16:30","17:30","18:30"];
-const busy = new Set(["0-10:00","0-14:30","1-09:00","1-16:30","2-11:00","3-15:30","3-17:30"]); // exemplo de horários ocupados
+const times = ["09:00","10:00","11:00","14:30","15:30","16:30","17:30"];
+const busy = new Set();
 
 function chip(label, sub, pressed, onClick, disabled){
   const b=document.createElement("button"); b.type="button"; b.className="chip";
@@ -577,8 +579,7 @@ function renderBooking(){
   const sv=document.getElementById("b-serv"), dy=document.getElementById("b-day"), tm=document.getElementById("b-time");
   sv.replaceChildren(...services.map((s,i)=>chip(s.n, brl(s.p), state.serv===i, ()=>{state.serv=i;renderBooking()})));
   dy.replaceChildren(...days.map((d,i)=>chip(DOW[d.getDay()], d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}), state.day===i, ()=>{state.day=i; state.time=null; renderBooking()})));
-  const isSat = days[state.day].getDay()===6;
-  tm.replaceChildren(...times.filter(t=>!(isSat && t>"17:00")).map(t=>chip(t,"",state.time===t,()=>{state.time=t;renderBooking()}, busy.has(state.day+"-"+t))));
+  tm.replaceChildren(...times.map(t=>chip(t,"",state.time===t,()=>{state.time=t;renderBooking()}, busy.has(state.day+"-"+t))));
   const s=services[state.serv], d=days[state.day];
   const dayTxt = DOW[d.getDay()]+", "+d.toLocaleDateString("pt-BR",{day:"2-digit",month:"long"});
   document.getElementById("s-serv").textContent=s.n;
