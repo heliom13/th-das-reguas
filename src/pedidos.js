@@ -38,7 +38,10 @@ export function horaLocal(data = new Date()) {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(data);
 }
 
-export function validarPedido(dados, catalogo = CATALOGO_PADRAO) {
+const EMAIL = /^[^s@]+@[^s@]+.[^s@]{2,}$/;
+
+// pixOnline: com o Mercado Pago ligado, o Pix é pago na hora pelo site e exige e-mail.
+export function validarPedido(dados, catalogo = CATALOGO_PADRAO, { pixOnline = false } = {}) {
   const erros = [];
   if (!dados || typeof dados !== 'object') return { erros: ['Pedido inválido.'] };
   const campo = (k) => proprio(dados, k);
@@ -59,6 +62,12 @@ export function validarPedido(dados, catalogo = CATALOGO_PADRAO) {
 
   const pagamento = campo('pagamento');
   if (!Object.hasOwn(PAGAMENTOS, pagamento ?? '')) erros.push('Escolha a forma de pagamento.');
+
+  let email = '';
+  if (pixOnline && pagamento === 'pix') {
+    email = texto(campo('email')).toLowerCase();
+    if (email.length > 120 || !EMAIL.test(email)) erros.push('Informe um e-mail válido para receber o Pix.');
+  }
 
   const retirada = campo('retirada');
   if (!Object.hasOwn(RETIRADAS, retirada ?? '')) erros.push('Escolha retirada na loja ou entrega.');
@@ -95,6 +104,7 @@ export function validarPedido(dados, catalogo = CATALOGO_PADRAO) {
       taxaEntrega: entrega,
       troco,
       observacao,
+      ...(email ? { email } : {}),
       total: centavos(produto.preco * quantidade + entrega),
     },
   };

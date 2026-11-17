@@ -199,6 +199,12 @@ section{padding-block:80px}
 .price-now s{color:var(--muted);font-family:var(--f-mono);font-size:.9rem}
 .price-now span{font-family:var(--f-display);font-weight:900;font-size:2rem;color:var(--amber)}
 .price-now em{font-style:normal;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;background:var(--amber);color:var(--amber-ink);padding:3px 8px;border-radius:999px;margin-top:4px}
+.pix-qr{display:block;width:240px;max-width:100%;height:auto;margin:4px auto;background:#fff;border-radius:12px;padding:10px}
+.pix-code{display:grid;gap:10px}
+.pix-code code{display:block;font:500 .78rem var(--f-mono);color:var(--muted);background:var(--black);border:1px solid #2a2a2e;border-radius:10px;padding:10px;word-break:break-all;max-height:84px;overflow:auto}
+.pix-status{font-weight:700;margin:0}
+.pix-status.pago{color:#4ade80}
+.pix-status.falhou{color:#f87171}
 .buy-foot{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .buy-foot b{font-family:var(--f-display);font-weight:900;font-size:2.1rem;color:var(--amber);line-height:1}
 .field{display:grid;gap:6px}
@@ -448,6 +454,7 @@ footer ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
               <label class="pay"><input type="radio" name="pagamento" value="dinheiro"><span>Dinheiro</span></label>
             </div>
           </fieldset>
+          <label class="field" id="campo-email" hidden><span class="step-label">Seu e-mail (para o comprovante do Pix)</span><input name="email" type="email" autocomplete="email" inputmode="email" placeholder="voce@email.com"></label>
           <label class="field" id="campo-troco" hidden><span class="step-label">Troco para quanto? (opcional)</span><input name="troco" inputmode="decimal" placeholder="Ex.: 200"></label>
 
           <input name="site" class="isca" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -458,8 +465,22 @@ footer ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
           </div>
           <p class="form-erro" id="buy-erro" role="alert" hidden></p>
           <button class="btn btn-amber" id="buy-enviar" type="submit">Fazer pedido</button>
-          <p class="note">O pagamento é feito na retirada ou na entrega. A confirmação vem pelo WhatsApp.</p>
+          <p class="note" id="buy-nota">O pagamento é feito na retirada ou na entrega. A confirmação vem pelo WhatsApp.</p>
         </form>
+        <div class="buy done pix-pay" id="buy-pix" hidden tabindex="-1">
+          <p class="eyebrow">Pedido <span id="pix-num"></span></p>
+          <h3 id="pix-titulo">Pague com Pix para confirmar</h3>
+          <p class="lead" id="pix-txt">Abra o app do seu banco, escolha Pix e leia o QR Code ou use o código copia e cola.</p>
+          <img id="pix-qr" class="pix-qr" alt="QR Code do Pix para pagar o pedido" width="240" height="240">
+          <div class="pix-code">
+            <code id="pix-codigo"></code>
+            <button class="btn btn-amber" type="button" id="pix-copiar">Copiar código Pix</button>
+          </div>
+          <p class="pix-status" id="pix-status" role="status">⏳ Aguardando o pagamento… esta tela atualiza sozinha.</p>
+          <p class="note" id="pix-validade"></p>
+          <a class="btn btn-mint" id="pix-wa" href="#" target="_blank" rel="noopener">Falar com a barbearia no WhatsApp</a>
+          <button class="btn btn-ghost" type="button" id="pix-novo" hidden>Fazer outro pedido</button>
+        </div>
         <div class="buy done" id="buy-ok" hidden tabindex="-1">
           <p class="eyebrow">Pedido recebido</p>
           <h3>Pedido <span id="ok-num"></span> anotado!</h3>
@@ -604,7 +625,8 @@ function desenharProdutos(){
 }
 fetch("/api/catalogo").then(r => r.ok ? r.json() : null).then(c => {
   if (!c) return;
-  loja.produtos = c.produtos; loja.taxa = c.taxaEntrega; loja.max = c.maxQuantidade;
+  loja.produtos = c.produtos; loja.taxa = c.taxaEntrega; loja.max = c.maxQuantidade; loja.pixOnline = !!c.pixOnline;
+  renderBuy();
   document.getElementById("taxa-txt").textContent = loja.taxa ? "+ " + brl(loja.taxa) : "Grátis";
   const fechada = !loja.produtos.length;
   document.getElementById("loja-fechada").hidden = !fechada;
@@ -620,6 +642,11 @@ function renderBuy(){
   document.getElementById("buy-total").textContent = brl(preco*qty + (entrega ? loja.taxa : 0));
   document.getElementById("campo-endereco").hidden = !entrega;
   document.getElementById("campo-troco").hidden = valor("pagamento") !== "dinheiro";
+  const pixNoSite = loja.pixOnline && valor("pagamento") === "pix";
+  document.getElementById("campo-email").hidden = !pixNoSite;
+  document.getElementById("buy-nota").textContent = pixNoSite
+    ? "Depois de fazer o pedido, aparece o QR Code do Pix para pagar na hora. A confirmação vem pelo WhatsApp."
+    : "O pagamento é feito na retirada ou na entrega. A confirmação vem pelo WhatsApp.";
 }
 buy.addEventListener("change", renderBuy);
 document.getElementById("q-minus").onclick = () => { qty = Math.max(1, qty-1); renderBuy(); };
@@ -631,8 +658,11 @@ buy.addEventListener("submit", async e => {
   const dados = {
     nome: campo("nome").value, telefone: campo("telefone").value, produto: produto.id,
     quantidade: qty, pagamento: valor("pagamento"), retirada: valor("retirada"),
-    endereco: campo("endereco").value, troco: campo("troco").value, site: campo("site").value
+    endereco: campo("endereco").value, troco: campo("troco").value, site: campo("site").value,
+    email: campo("email").value
   };
+  const pixNoSite = loja.pixOnline && dados.pagamento === "pix";
+  if (pixNoSite && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(dados.email.trim())) { erroBuy("Informe um e-mail válido para receber o Pix."); return campo("email").focus(); }
   if (dados.nome.trim().length < 2) { erroBuy("Informe seu nome."); return campo("nome").focus(); }
   if (dados.telefone.replace(/\D/g,"").length < 10) { erroBuy("Informe seu WhatsApp com DDD."); return campo("telefone").focus(); }
   if (dados.retirada === "entrega" && dados.endereco.trim().length < 5) { erroBuy("Informe o endereço de entrega."); return campo("endereco").focus(); }
@@ -645,6 +675,7 @@ buy.addEventListener("submit", async e => {
     if (!r.ok) throw new Error(resp.erro || "Não foi possível enviar. Tente de novo.");
     const pag = { pix: "Pix", cartao: "cartão", dinheiro: "dinheiro" }[dados.pagamento];
     const receber = dados.retirada === "entrega" ? "entrega em " + dados.endereco.trim() : "retirada na barbearia";
+    if (resp.pix) return mostrarPix(resp, `${qty}x ${produto.nome}, ${receber}`, dados.nome.trim());
     document.getElementById("ok-num").textContent = "#" + resp.numero;
     document.getElementById("ok-txt").textContent = `${qty}x ${produto.nome}, ${receber}, pagamento em ${pag}. Total ${brl(resp.total)}. Logo a barbearia fala com você.`;
     document.getElementById("ok-wa").href = wa(`Olá! Fiz o pedido #${resp.numero} pelo site: ${qty}x ${produto.nome}, ${receber}, pagamento em ${pag}. Meu nome: ${dados.nome.trim()}.`);
@@ -656,12 +687,65 @@ buy.addEventListener("submit", async e => {
     botao.disabled = false; botao.textContent = "Fazer pedido";
   }
 });
-document.getElementById("ok-novo").onclick = () => {
+// Pix pago pelo site: mostra o QR Code e pergunta ao servidor se o pagamento já caiu.
+let pixTimer;
+function mostrarPix(resp, resumo, nome){
+  const el = (id) => document.getElementById(id);
+  el("pix-num").textContent = "#" + resp.numero;
+  el("pix-titulo").textContent = "Pague " + brl(resp.total) + " com Pix";
+  el("pix-txt").textContent = resumo + ". Abra o app do seu banco, escolha Pix e leia o QR Code ou use o código copia e cola.";
+  const qr = el("pix-qr");
+  qr.hidden = !resp.pix.qrBase64;
+  if (resp.pix.qrBase64) qr.src = "data:image/png;base64," + resp.pix.qrBase64;
+  el("pix-codigo").textContent = resp.pix.copiaCola;
+  el("pix-codigo").parentElement.hidden = false;
+  const vence = new Date(resp.pix.expiraEm);
+  el("pix-validade").textContent = "Este Pix vale até as " + vence.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + ".";
+  el("pix-wa").href = wa(`Olá! Fiz o pedido #${resp.numero} pelo site (${resumo}), pagando com Pix. Meu nome: ${nome}.`);
+  status("⏳ Aguardando o pagamento… esta tela atualiza sozinha.", "");
+  el("pix-novo").hidden = true;
+  buy.hidden = true;
+  const box = el("buy-pix"); box.hidden = false; box.focus();
+
+  function status(texto, classe){ const s = el("pix-status"); s.textContent = texto; s.className = "pix-status " + classe; }
+  function terminar(){ clearInterval(pixTimer); el("pix-novo").hidden = false; }
+  clearInterval(pixTimer);
+  pixTimer = setInterval(async () => {
+    if (Date.now() > vence.getTime() + 10 * 60_000) { status("Este Pix expirou. Se você já pagou, chame a barbearia no WhatsApp.", "falhou"); return terminar(); }
+    try {
+      const r = await fetch("/api/pix?ref=" + encodeURIComponent(resp.pix.referencia));
+      if (!r.ok) return;
+      const { situacao } = await r.json();
+      if (situacao === "pago") {
+        status("✅ Pagamento confirmado! A barbearia já recebeu seu pedido.", "pago");
+        el("pix-titulo").textContent = "Pedido pago!";
+        el("pix-qr").hidden = true; el("pix-codigo").parentElement.hidden = true; el("pix-validade").textContent = "";
+        terminar();
+      } else if (situacao === "expirado" || situacao === "estornado") {
+        status("Este Pix não foi pago a tempo e o pedido foi cancelado. Faça um novo pedido quando quiser.", "falhou");
+        el("pix-qr").hidden = true; el("pix-codigo").parentElement.hidden = true;
+        terminar();
+      } else if (situacao === "divergente") {
+        status("Recebemos um valor diferente do pedido. A barbearia vai falar com você.", "falhou");
+        terminar();
+      }
+    } catch { /* sem internet: tenta de novo no próximo ciclo */ }
+  }, 5000);
+}
+document.getElementById("pix-copiar").onclick = () => {
+  const codigo = document.getElementById("pix-codigo").textContent;
+  try { navigator.clipboard.writeText(codigo).then(() => toast("Código Pix copiado"), () => toast("Selecione o código e copie")); }
+  catch { toast("Selecione o código e copie"); }
+};
+function novoPedido(){
+  clearInterval(pixTimer);
   buy.reset(); qty = 1;
   if (loja.produtos.length) { selecionar(loja.produtos[0]); desenharProdutos(); }
   renderBuy();
-  document.getElementById("buy-ok").hidden = true; buy.hidden = false;
-};
+  document.getElementById("buy-ok").hidden = true; document.getElementById("buy-pix").hidden = true; buy.hidden = false;
+}
+document.getElementById("ok-novo").onclick = novoPedido;
+document.getElementById("pix-novo").onclick = novoPedido;
 renderBuy();
 
 let tt;

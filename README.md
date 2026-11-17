@@ -31,6 +31,16 @@ Sem `DATABASE_URL` os dados ficam em memória (somem ao reiniciar).
 | `SEGREDO_SESSAO` | recomendada | Texto aleatório longo; mantém o dono logado após reinícios. |
 | `NODE_ENV` | `production` no Render | Cookie seguro e exige banco. |
 | `MANTER_ACORDADO` | `1` no plano gratuito | O serviço se chama a cada 10 min para não dormir (o relatório e o robô dependem disso). |
+| `MP_ACCESS_TOKEN` | para o Pix pelo site | Access Token do Mercado Pago (de teste `TEST-...` ou de produção `APP_USR-...`). Sem ele, o Pix é pago na retirada/entrega, como antes. |
+| `MP_WEBHOOK_SECRET` | recomendada com o Pix | Assinatura secreta dos webhooks do Mercado Pago; avisos com assinatura errada são recusados. |
+| `SITE_URL` | opcional | Endereço público com https (padrão: `RENDER_EXTERNAL_URL`), usado no aviso de pagamento. |
+
+## Pix pelo site (Mercado Pago)
+
+- O cliente escolhe Pix, informa o e-mail e recebe o QR Code na hora; a página confere sozinha a cada 5 s.
+- O aviso do Mercado Pago chega em `POST /webhooks/mercadopago` (enviado em cada cobrança pelo `notification_url`). O pagamento é sempre relido na API antes de mudar o pedido.
+- Valor pago diferente do total vira "valor diferente, conferir"; Pix vencido sem pagamento cancela o pedido (sai dos relatórios).
+- A cada 5 min o sistema confere os Pix ainda em aberto, caso algum aviso se perca.
 
 ## Render
 

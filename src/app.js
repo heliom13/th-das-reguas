@@ -1,5 +1,6 @@
 // Servidor HTTP: site público, API de pedidos e painel do dono.
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -76,9 +77,13 @@ function periodo(url) {
   return { de, ate };
 }
 
-export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new Date(), producao = false, log = console }) {
+export function criarApp({
+  banco, whatsapp, agenda, sessoes, pagamentos = null, agora = () => new Date(), producao = false, log = console,
+}) {
   const ouvintes = new Set();
+  const pixOnline = Boolean(pagamentos?.habilitado);
   const limitePedidos = criarLimite({ maximo: 20, janela: 10 * 60_000 });
+  const limiteConsultaPix = criarLimite({ maximo: 300, janela: 10 * 60_000 });
   const limiteLogin = criarLimite({ maximo: 10, janela: 15 * 60_000 });
 
   function avisar(tipo, dados = {}) {
@@ -98,6 +103,43 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
       enviadoHoje: await banco.relatorioEnviado(diaLocal(agora())),
       pendencia: agenda?.pendencia() ?? null,
     };
+  }
+
+  // Aplica no pedido a situação do pagamento lida na API do Mercado Pago.
+  // Valor diferente do total do pedido nunca vira "pago": fica marcado para o dono conferir.
+  async function aplicarPagamento(pedido, pagamento) {
+    let situacao = pagamento.situacao;
+    if (situacao === 'pago' && Math.abs(pagamento.valor - pedido.total) > 0.009) situacao = 'divergente';
+    if (pedido.pix.situacao === situacao) {
+      return (await banco.atualizarPix(pedido.id, { verificadoEm: agora().toISOString() })) ?? pedido;
+    }
+    const mudancas = { situacao, mpId: pagamento.id, status: pagamento.status, verificadoEm: agora().toISOString() };
+    if (situacao === 'pago') mudancas.pagoEm = agora().toISOString();
+    let atualizado = await banco.atualizarPix(pedido.id, mudancas);
+    // Pix vencido sem pagamento não é venda: o pedido sai dos relatórios.
+    if (situacao === 'expirado' && atualizado.situacao === 'novo') atualizado = await banco.mudarSituacao(pedido.id, 'cancelado');
+    avisar('pedido', { id: pedido.id, dia: pedido.dia });
+    if (situacao === 'pago' || situacao === 'divergente') {
+      avisarNoGrupo(atualizado).catch((e) => log.error?.('Aviso de Pix no grupo:', e.message));
+    }
+    return atualizado;
+  }
+
+  // Conferência periódica: pega pagamentos cujo aviso (webhook) não chegou.
+  async function conferirPixPendentes() {
+    if (!pixOnline) return 0;
+    const desde = new Date(agora().getTime() - 2 * 86_400_000);
+    let conferidos = 0;
+    for (const pedido of await banco.listarPixAguardando(desde)) {
+      if (!pedido.pix.mpId) continue;
+      try {
+        await aplicarPagamento(pedido, await pagamentos.consultar(pedido.pix.mpId));
+        conferidos++;
+      } catch (e) {
+        log.error?.(`Conferência do Pix do pedido #${pedido.numero}:`, e.message);
+      }
+    }
+    return conferidos;
   }
 
   // Aviso no grupo a cada pedido (opcional). Nunca atrasa nem derruba o pedido do cliente.
@@ -140,6 +182,7 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
         produtos: produtos.filter((p) => p.ativo).map(({ id, nome, detalhe, preco, precoAntigo }) => ({ id, nome, detalhe, preco, precoAntigo })),
         taxaEntrega,
         maxQuantidade: MAX_QUANTIDADE,
+        pixOnline,
       });
     },
 
@@ -147,13 +190,87 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
       if (!limitePedidos(ipDe(req))) throw new ErroHttp(429, 'Muitos pedidos seguidos. Tente de novo em alguns minutos.');
       const corpo = await lerCorpo(req);
       if (corpo.site) return json(res, 201, { ok: true, numero: 0, total: 0 }); // campo-isca preenchido por robôs
-      const { pedido, erros } = validarPedido(corpo, await lerCatalogo(banco));
+      const { pedido, erros } = validarPedido(corpo, await lerCatalogo(banco), { pixOnline });
       if (erros) return json(res, 400, { erro: erros.join(' '), erros });
       const momento = agora();
+
+      // Pix pelo site: a cobrança é criada antes de gravar o pedido, para não sobrar
+      // pedido sem Pix. A referência liga o pagamento do Mercado Pago a este pedido.
+      if (pixOnline && pedido.pagamento === 'pix') {
+        const referencia = randomUUID();
+        let cobranca;
+        try {
+          cobranca = await pagamentos.criarPix({
+            referencia,
+            valor: pedido.total,
+            descricao: `TH das Réguas - ${pedido.quantidade}x ${pedido.produtoNome}`,
+            email: pedido.email,
+            nome: pedido.nome,
+          });
+        } catch (e) {
+          log.error?.('Criar Pix:', e.message);
+          throw new ErroHttp(502, 'Não foi possível gerar o Pix agora. Tente de novo em instantes ou escolha outra forma de pagamento.');
+        }
+        pedido.pix = {
+          referencia,
+          mpId: cobranca.id,
+          status: cobranca.status,
+          situacao: 'aguardando',
+          copiaCola: cobranca.copiaCola,
+          qrBase64: cobranca.qrBase64,
+          expiraEm: cobranca.expiraEm,
+        };
+        const salvo = await banco.criarPedido(pedido, diaLocal(momento), momento);
+        avisar('pedido', { id: salvo.id, dia: salvo.dia });
+        return json(res, 201, {
+          ok: true,
+          numero: salvo.numero,
+          total: salvo.total,
+          pix: { referencia, copiaCola: cobranca.copiaCola, qrBase64: cobranca.qrBase64, expiraEm: cobranca.expiraEm },
+        });
+      }
+
       const salvo = await banco.criarPedido(pedido, diaLocal(momento), momento);
       avisar('pedido', { id: salvo.id, dia: salvo.dia });
       avisarNoGrupo(salvo).catch((e) => log.error?.('Aviso de pedido no grupo:', e.message));
       json(res, 201, { ok: true, numero: salvo.numero, total: salvo.total });
+    },
+
+    // A página do cliente pergunta se o Pix já foi pago. A referência (UUID aleatório)
+    // só é conhecida por quem fez o pedido; a resposta não mostra dados pessoais.
+    'GET /api/pix': async (req, res, url) => {
+      if (!limiteConsultaPix(ipDe(req))) throw new ErroHttp(429, 'Muitas consultas. Espere um pouco.');
+      let pedido = await banco.buscarPorReferencia(url.searchParams.get('ref'));
+      if (!pedido?.pix) throw new ErroHttp(404, 'Pagamento não encontrado.');
+      const ultima = Date.parse(pedido.pix.verificadoEm ?? '') || 0;
+      if (pixOnline && pedido.pix.situacao === 'aguardando' && agora().getTime() - ultima > 15_000) {
+        try {
+          pedido = await aplicarPagamento(pedido, await pagamentos.consultar(pedido.pix.mpId));
+        } catch (e) {
+          log.error?.('Consultar Pix:', e.message);
+        }
+      }
+      json(res, 200, { numero: pedido.numero, situacao: pedido.pix.situacao, expiraEm: pedido.pix.expiraEm });
+    },
+
+    // Aviso do Mercado Pago. Assinatura conferida (com MP_WEBHOOK_SECRET) e o pagamento
+    // sempre relido na API antes de mudar o pedido: um aviso falso não marca nada como pago.
+    'POST /webhooks/mercadopago': async (req, res, url) => {
+      if (!pixOnline) throw new ErroHttp(404, 'Não encontrado.');
+      const corpo = await lerCorpo(req).catch(() => ({}));
+      const tipo = url.searchParams.get('type') ?? url.searchParams.get('topic') ?? corpo.type;
+      const id = url.searchParams.get('data.id') ?? url.searchParams.get('id') ?? corpo.data?.id;
+      const assinado = pagamentos.assinaturaValida({
+        xSignature: req.headers['x-signature'],
+        xRequestId: req.headers['x-request-id'],
+        dataId: url.searchParams.get('data.id'),
+      });
+      if (pagamentos.webhookAssinado && req.headers['x-signature'] && !assinado) throw new ErroHttp(401, 'Assinatura inválida.');
+      if (tipo !== 'payment' || !id) return json(res, 200, { ok: true, ignorado: true });
+      const pagamento = await pagamentos.consultar(id);
+      const pedido = await banco.buscarPorReferencia(pagamento.referencia);
+      if (pedido?.pix) await aplicarPagamento(pedido, pagamento);
+      json(res, 200, { ok: true });
     },
 
     'POST /api/painel/entrar': async (req, res) => {
@@ -335,5 +452,5 @@ export function criarApp({ banco, whatsapp, agenda, sessoes, agora = () => new D
 
   const servidor = createServer(tratar);
   servidor.requestTimeout = 30_000;
-  return { servidor, avisar };
+  return { servidor, avisar, conferirPixPendentes };
 }

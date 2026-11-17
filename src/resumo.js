@@ -45,8 +45,18 @@ const dataBr = (dia) => dia.split('-').reverse().join('/');
 function descreverPagamento(p) {
   let txt = PAGAMENTOS[p.pagamento];
   if (p.pagamento === 'dinheiro' && p.troco) txt += ` (troco p/ ${reais(p.troco)})`;
+  if (p.pix) txt += ` ${ROTULO_PIX[p.pix.situacao] ?? ''}`.trimEnd();
   return txt;
 }
+
+// Pix pago pelo site (Mercado Pago): situação mostrada no aviso e no relatório.
+export const ROTULO_PIX = {
+  aguardando: '(aguardando pagamento no site)',
+  pago: '(pago pelo site ✅)',
+  expirado: '(Pix expirou, não pago)',
+  estornado: '(devolvido ao cliente)',
+  divergente: '(valor diferente, conferir!)',
+};
 
 // Texto enviado no grupo do WhatsApp e copiado pelo painel.
 export function textoDoRelatorio(pedidos, dia) {
@@ -86,7 +96,7 @@ export function textoDoRelatorio(pedidos, dia) {
 // Aviso curto no grupo quando entra um pedido (opcional).
 export function textoDoAviso(p) {
   const linhas = [
-    `🆕 *Pedido #${p.numero}* — ${p.nome}`,
+    p.pix?.situacao === 'pago' ? `💰 *Pix pago — Pedido #${p.numero}* — ${p.nome}` : `🆕 *Pedido #${p.numero}* — ${p.nome}`,
     `${p.quantidade}x ${p.produtoNome} — ${descreverPagamento(p)} — ${RETIRADAS[p.retirada]}`,
   ];
   if (p.retirada === 'entrega') linhas.push(`📍 ${p.endereco}`);

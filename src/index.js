@@ -1,6 +1,7 @@
 import { criarApp } from './app.js';
 import { criarAgenda } from './agenda.js';
 import { criarBancoMemoria, criarBancoPostgres } from './banco.js';
+import { criarMercadoPago } from './mercadopago.js';
 import { criarSessoes } from './sessao.js';
 import { criarWhatsApp } from './whatsapp.js';
 
@@ -45,11 +46,26 @@ const whatsapp = criarWhatsApp({ banco, log, aoMudar: (s) => app?.avisar('whatsa
 const agenda = criarAgenda({ banco, whatsapp, log, aoMudar: () => app?.avisar('whatsapp', whatsapp.status()) });
 const sessoes = criarSessoes({ senha: process.env.PAINEL_SENHA, segredo: process.env.SEGREDO_SESSAO || undefined });
 
-app = criarApp({ banco, whatsapp, agenda, sessoes, producao, log });
+// Pix pelo site (Mercado Pago). Sem MP_ACCESS_TOKEN, o Pix continua sendo pago na
+// retirada/entrega, como antes. O aviso de pagamento vai para o endereço público do Render.
+const enderecoPublico = (process.env.SITE_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+const pagamentos = criarMercadoPago({
+  token: process.env.MP_ACCESS_TOKEN,
+  segredoWebhook: process.env.MP_WEBHOOK_SECRET,
+  urlNotificacao: enderecoPublico.startsWith('https://') ? `${enderecoPublico}/webhooks/mercadopago` : undefined,
+});
+
+app = criarApp({ banco, whatsapp, agenda, sessoes, pagamentos, producao, log });
 app.servidor.listen(porta, () => {
   log.info(`TH das Réguas no ar na porta ${porta} (banco: ${banco.tipo}).`);
   if (!sessoes.habilitado) log.warn('PAINEL_SENHA não configurada: o painel fica bloqueado.');
+  log.info(pagamentos.habilitado ? 'Pix pelo site: Mercado Pago ligado.' : 'Pix pelo site desligado (sem MP_ACCESS_TOKEN).');
 });
+
+// Confere a cada 5 min os Pix ainda em aberto, caso algum aviso do Mercado Pago se perca.
+if (pagamentos.habilitado) {
+  setInterval(() => app.conferirPixPendentes().catch((e) => log.error('Conferência de Pix:', e.message)), 5 * 60_000);
+}
 
 // Só uma cópia do sistema conecta o WhatsApp e envia o relatório (num deploy, a
 // nova espera a antiga sair). A trava fica no banco e some se o processo morrer.

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS pedidos (
   UNIQUE (dia, numero)
 );
 CREATE INDEX IF NOT EXISTS pedidos_dia ON pedidos (dia);
+CREATE INDEX IF NOT EXISTS pedidos_pix_referencia ON pedidos ((dados->'pix'->>'referencia'));
 CREATE TABLE IF NOT EXISTS configuracoes (chave text PRIMARY KEY, valor jsonb NOT NULL);
 CREATE TABLE IF NOT EXISTS whatsapp_sessao (chave text PRIMARY KEY, valor text NOT NULL);
 CREATE TABLE IF NOT EXISTS relatorios (
@@ -77,6 +78,19 @@ export function criarBancoMemoria() {
       const i = pedidos.findIndex((x) => x.id === id && x.situacao === 'cancelado');
       if (i < 0) return null;
       return pedidos.splice(i, 1)[0];
+    },
+    async buscarPorReferencia(referencia) {
+      const p = pedidos.find((x) => x.pix?.referencia === referencia);
+      return p ? structuredClone(p) : null;
+    },
+    async atualizarPix(id, mudancas) {
+      const p = pedidos.find((x) => x.id === id);
+      if (!p?.pix) return null;
+      p.pix = { ...p.pix, ...mudancas };
+      return structuredClone(p);
+    },
+    async listarPixAguardando(desde) {
+      return structuredClone(pedidos.filter((p) => p.pix?.situacao === 'aguardando' && p.criadoEm >= desde.toISOString()));
     },
     async ler(chave) {
       return config.has(chave) ? structuredClone(config.get(chave)) : null;
@@ -242,6 +256,27 @@ export async function criarBancoPostgres(url, { log = console } = {}) {
       if (!UUID.test(id)) return null;
       const { rows } = await pool.query("DELETE FROM pedidos WHERE id = $1 AND situacao = 'cancelado' RETURNING *", [id]);
       return rows[0] ? montar(rows[0]) : null;
+    },
+    async buscarPorReferencia(referencia) {
+      if (!UUID.test(referencia ?? '')) return null;
+      const { rows } = await pool.query("SELECT * FROM pedidos WHERE dados->'pix'->>'referencia' = $1", [referencia]);
+      return rows[0] ? montar(rows[0]) : null;
+    },
+    async atualizarPix(id, mudancas) {
+      if (!UUID.test(id)) return null;
+      const { rows } = await pool.query(
+        `UPDATE pedidos SET dados = jsonb_set(dados, '{pix}', (dados->'pix') || $2::jsonb)
+         WHERE id = $1 AND dados ? 'pix' RETURNING *`,
+        [id, JSON.stringify(mudancas)],
+      );
+      return rows[0] ? montar(rows[0]) : null;
+    },
+    async listarPixAguardando(desde) {
+      const { rows } = await pool.query(
+        "SELECT * FROM pedidos WHERE dados->'pix'->>'situacao' = 'aguardando' AND criado_em >= $1 ORDER BY criado_em",
+        [desde],
+      );
+      return rows.map(montar);
     },
     async ler(chave) {
       const { rows } = await pool.query('SELECT valor FROM configuracoes WHERE chave = $1', [chave]);

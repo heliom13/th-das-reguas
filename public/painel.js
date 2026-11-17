@@ -200,7 +200,20 @@ function cartaoDoPedido(p, nomes) {
   el.querySelector('.qtd').textContent = `${p.quantidade}x ${p.produtoNome}`;
   let pag = nomes.pagamentos[p.pagamento];
   if (p.pagamento === 'dinheiro' && p.troco) pag += ` · troco p/ ${reais(p.troco)}`;
-  el.querySelector('.pag').textContent = pag;
+  // Pix pago pelo site: a situação vem do Mercado Pago.
+  const PIX = {
+    aguardando: ['⏳ aguardando pagamento', 'pix-aguardando'],
+    pago: ['✅ pago pelo site', 'pix-pago'],
+    expirado: ['Pix expirou, não pago', 'pix-falhou'],
+    estornado: ['devolvido ao cliente', 'pix-falhou'],
+    divergente: ['⚠ valor diferente, conferir', 'pix-falhou'],
+  };
+  const tagPag = el.querySelector('.pag');
+  if (p.pix && PIX[p.pix.situacao]) {
+    pag += ` · ${PIX[p.pix.situacao][0]}`;
+    tagPag.classList.add(PIX[p.pix.situacao][1]);
+  }
+  tagPag.textContent = pag;
   const ret = el.querySelector('.ret');
   ret.textContent = nomes.retiradas[p.retirada];
   if (p.retirada === 'entrega') ret.classList.add('entrega');
