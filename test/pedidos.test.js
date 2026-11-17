@@ -116,7 +116,7 @@ test('resumo conta clientes, peças, pagamento e retirada sem cancelados', () =>
   assert.equal(r.porPagamento.pix.pedidos, 2);
   assert.equal(r.porPagamento.cartao.pedidos, 0);
   assert.deepEqual(r.porRetirada, { loja: 2, entrega: 1 });
-  assert.equal(r.valor, 270 + 145 + 135);
+  assert.equal(r.valor, 270 + 155 + 135);
 
   const txt = textoDoRelatorio(pedidos, '2026-11-12');
   assert.match(txt, /12\/11\/2026/);

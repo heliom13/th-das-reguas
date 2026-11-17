@@ -15,7 +15,7 @@ export const CATALOGO_PADRAO = {
       ativo: true,
     },
   ],
-  taxaEntrega: 10,
+  taxaEntrega: 20,
 };
 
 export const MAX_QUANTIDADE = 20;

@@ -467,7 +467,7 @@ footer ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
           <fieldset class="group">
             <legend class="step-label">Como receber</legend>
             <label class="opt"><input type="radio" name="retirada" value="loja" checked><div><b>Retirar na barbearia</b><small>Sem custo, é só passar lá</small></div><span class="mono">Grátis</span></label>
-            <label class="opt"><input type="radio" name="retirada" value="entrega"><div><b>Entrega</b><small>Levamos até você</small></div><span class="mono" id="taxa-txt">+ R$ 10</span></label>
+            <label class="opt"><input type="radio" name="retirada" value="entrega"><div><b>Entrega</b><small>Levamos até você</small></div><span class="mono" id="taxa-txt">+ R$ 20</span></label>
           </fieldset>
           <label class="field" id="campo-endereco" hidden><span class="step-label">Endereço de entrega</span><input name="endereco" autocomplete="street-address" maxlength="200" placeholder="Rua, número, bairro e referência"></label>
 
@@ -600,7 +600,7 @@ document.querySelectorAll("[data-course]").forEach(a=>{
 });
 
 // Loja: o pedido é salvo no servidor; preço e total são recalculados lá.
-const loja = { produtos: [], produto: null, taxa: 10, max: 20 };
+const loja = { produtos: [], produto: null, taxa: 20, max: 20 };
 const DETALHE_ORIGINAL = document.getElementById("prod-detalhe").innerHTML;
 let qty = 1;
 const buy = document.getElementById("buy");

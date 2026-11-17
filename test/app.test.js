@@ -68,7 +68,7 @@ test('catálogo público mostra só produtos ativos', async () => {
   const c = await dados('/api/catalogo');
   assert.equal(c.produtos.length, 1);
   assert.equal(c.produtos[0].id, 'touca-leon');
-  assert.equal(c.taxaEntrega, 10);
+  assert.equal(c.taxaEntrega, 20);
   assert.equal(c.produtos[0].ativo, undefined);
 });
 
@@ -81,7 +81,7 @@ test('cliente faz pedido e recebe número e total calculado no servidor', async 
     corpo: pedido({ nome: 'Bruno', telefone: '98993334444', pagamento: 'dinheiro', troco: '200', retirada: 'entrega', endereco: 'Rua das Flores, 20' }),
     ip: '1.1.1.2',
   });
-  assert.deepEqual(await r2.json(), { ok: true, numero: 2, total: 145 });
+  assert.deepEqual(await r2.json(), { ok: true, numero: 2, total: 155 });
 });
 
 test('pedido inválido, sem JSON ou grande demais é recusado', async () => {
