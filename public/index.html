@@ -159,6 +159,17 @@ section{padding-block:80px}
 .box-img{justify-self:center;max-height:560px;width:auto;filter:drop-shadow(0 30px 40px rgba(0,0,0,.6)) drop-shadow(0 0 60px rgba(243,154,45,.18))}
 .feats{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
 .feat{border:1.5px solid var(--amber);color:var(--amber);border-radius:8px;padding:5px 12px;font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+.sizes{margin-bottom:56px}
+.sizes h3{margin-bottom:8px}
+.sizes-lead{color:var(--muted);max-width:62ch;margin:0 0 20px}
+/* No celular vira carrossel com rolagem lateral; no computador, cinco colunas */
+.sizes-list{list-style:none;margin:0;padding:0 0 8px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,70%);gap:14px;overflow-x:auto;scroll-snap-type:x mandatory}
+.sizes-list li{scroll-snap-align:start}
+.sizes-list figure{margin:0;border:1px solid #2a2a2e;border-radius:16px;overflow:hidden;background:#121214;height:100%}
+.sizes-list img{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover}
+.sizes-list figcaption{padding:10px 14px;font-size:.84rem;color:var(--muted)}
+.sizes-list figcaption b{display:block;font-family:var(--f-display);font-weight:900;font-size:1.3rem;color:var(--amber)}
+@media (min-width:900px){.sizes-list{grid-auto-flow:row;grid-template-columns:repeat(5,1fr);overflow:visible}}
 .shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
 .real{border-radius:18px;overflow:hidden;border:1px solid #2a2a2e;margin-bottom:24px}
 .real img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;object-position:50% 40%}
@@ -401,6 +412,18 @@ footer ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
           <p class="lead">A touca Leon Barber, a mesma usada nos atendimentos. Silicone transparente, reutilizável, com furos alinhados para as mechas saírem por igual.</p>
           <div class="feats"><span class="feat gift">Agulha de brinde</span><span class="feat">Furos alinhados</span><span class="feat">Extra transparência</span><span class="feat">Todos os tipos de reflexo</span></div>
         </div>
+      </div>
+
+      <div class="sizes">
+        <h3>Tamanhos de furo</h3>
+        <p class="sizes-lead">A touca Leon Barber em cinco tamanhos de furo. Furo menor deixa a mecha mais fina e discreta; furo maior, a mecha mais grossa e marcada. Para saber qual tamanho combina com o reflexo que você quer, chame a barbearia no WhatsApp.</p>
+        <ul class="sizes-list">
+          <li><figure><img src="img/touca-furos-2mm.webp" alt="Embalagem da touca Leon Barber com furos de 2 mm" width="900" height="886" loading="lazy" decoding="async"><figcaption><b>2 mm</b>Mechas bem finas</figcaption></figure></li>
+          <li><figure><img src="img/touca-furos-6mm.webp" alt="Embalagem da touca Leon Barber com furos de 6 mm" width="900" height="879" loading="lazy" decoding="async"><figcaption><b>6 mm</b>Mechas finas</figcaption></figure></li>
+          <li><figure><img src="img/touca-furos-8mm.webp" alt="Embalagem da touca Leon Barber com furos de 8 mm" width="900" height="895" loading="lazy" decoding="async"><figcaption><b>8 mm</b>Mechas médias</figcaption></figure></li>
+          <li><figure><img src="img/touca-furos-9mm.webp" alt="Embalagem da touca Leon Barber com furos de 9 mm" width="900" height="885" loading="lazy" decoding="async"><figcaption><b>9 mm</b>Mechas grossas</figcaption></figure></li>
+          <li><figure><img src="img/touca-furos-10mm.webp" alt="Embalagem da touca Leon Barber com furos de 10 mm" width="900" height="885" loading="lazy" decoding="async"><figcaption><b>10 mm</b>Mechas bem marcadas</figcaption></figure></li>
+        </ul>
       </div>
 
       <div class="shop-grid">
