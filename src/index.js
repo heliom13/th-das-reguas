@@ -29,6 +29,17 @@ if (bancoAntigo && bancoAntigo !== process.env.DATABASE_URL && banco.copiarDe) {
   }
 }
 
+// Ajuste único pedido pelo dono em 16/11: taxa de entrega de R$ 10 para R$ 20 no catálogo
+// já salvo. Só troca se ainda estiver no valor antigo; outro valor salvo pelo painel fica.
+if (!(await banco.ler('ajuste.taxa-entrega-20'))) {
+  const catalogo = await banco.ler('catalogo');
+  if (catalogo && catalogo.taxaEntrega === 10) {
+    await banco.gravar('catalogo', { ...catalogo, taxaEntrega: 20 });
+    log.info('Taxa de entrega do catálogo ajustada de R$ 10 para R$ 20.');
+  }
+  await banco.gravar('ajuste.taxa-entrega-20', { em: new Date().toISOString() });
+}
+
 let app;
 const whatsapp = criarWhatsApp({ banco, log, aoMudar: (s) => app?.avisar('whatsapp', s) });
 const agenda = criarAgenda({ banco, whatsapp, log, aoMudar: () => app?.avisar('whatsapp', whatsapp.status()) });
