@@ -66,3 +66,13 @@ test('teto geral de tentativas de senha vale mesmo trocando de IP', async () => 
   for (let i = 0; i < 60; i++) ultimo = await entrar('errada', { 'X-Forwarded-For': `20.0.${i}.1` });
   assert.equal(ultimo.status, 429);
 });
+
+test('robots.txt esconde o painel do Google e aponta o sitemap', async () => {
+  const robots = await fetch(base + '/robots.txt');
+  assert.equal(robots.status, 200);
+  const texto = await robots.text();
+  assert.match(texto, /Disallow: \/painel/);
+  assert.match(texto, /Sitemap: https:\/\//);
+  const mapa = await fetch(base + '/sitemap.xml');
+  assert.match(mapa.headers.get('content-type'), /application\/xml/);
+});

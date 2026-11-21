@@ -17,7 +17,7 @@ const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
-  '.txt': 'text/plain; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8',
 };
 const DIA_VALIDO = /^\d{4}-\d{2}-\d{2}$/;
 const HORARIO_VALIDO = /^([01]\d|2[0-3]):[0-5]\d$/;
