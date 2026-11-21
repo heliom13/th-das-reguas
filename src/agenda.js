@@ -1,5 +1,3 @@
-// Envio automático do relatório do dia no grupo do WhatsApp.
-// Se o servidor estava dormindo ou o WhatsApp caiu no horário, envia assim que puder (até 23:59).
 import { diaLocal, horaLocal } from './pedidos.js';
 import { textoDoRelatorio } from './resumo.js';
 

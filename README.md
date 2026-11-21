@@ -42,6 +42,14 @@ Sem `DATABASE_URL` os dados ficam em memória (somem ao reiniciar).
 - Valor pago diferente do total vira "valor diferente, conferir"; Pix vencido sem pagamento cancela o pedido (sai dos relatórios).
 - A cada 5 min o sistema confere os Pix ainda em aberto, caso algum aviso se perca.
 
+## Segurança
+
+- Senha do painel com 12 caracteres ou mais. Trocar `PAINEL_SENHA` no Render desconecta na hora todos os aparelhos logados.
+- Até 10 tentativas de senha por IP e 60 no total a cada 15 min. Entradas e senhas erradas ficam no log do Render, com o IP.
+- Cookie de login `__Host-sessao` (HttpOnly, Secure, SameSite=Strict), válido por 12 h.
+- Cabeçalhos de proteção em todas as páginas: HTTPS obrigatório (HSTS), proibido abrir dentro de outro site, e política de conteúdo (o painel só executa `/painel.js`).
+- Preço e total sempre recalculados no servidor; aviso de pagamento sempre conferido na API do Mercado Pago.
+
 ## Render
 
 Web Service Node (`render.yaml`): build `npm ci`, start `npm start`, health check `/saude`.

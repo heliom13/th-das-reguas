@@ -1,5 +1,3 @@
-// Conexão do número do robô com o WhatsApp (aparelho conectado via QR Code).
-// A sessão fica no banco, então reinícios e novos deploys não pedem novo QR.
 import makeWASocket, {
   BufferJSON, Browsers, DisconnectReason, initAuthCreds, isJidBroadcast, isJidNewsletter,
   jidNormalizedUser, makeCacheableSignalKeyStore, proto,

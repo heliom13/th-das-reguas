@@ -17,8 +17,6 @@ const estado = {
   eventos: null, periodo: { preset: 'mes', de: null, ate: null }, dadosPeriodo: null, catalogo: null, whatsapp: null,
 };
 
-// ---------- Utilidades ----------
-
 let tt;
 function toast(texto) {
   const el = $('toast');
@@ -48,7 +46,6 @@ async function api(caminho, opcoes = {}) {
   return corpo;
 }
 
-// Executa a ação com o botão bloqueado, evitando clique duplo.
 async function comBotao(botao, acao) {
   if (botao.disabled) return;
   botao.disabled = true;
@@ -102,8 +99,6 @@ function bip() {
   }
 }
 
-// ---------- Login ----------
-
 function mostrarLogin() {
   estado.eventos?.close();
   $('app').hidden = true;
@@ -132,8 +127,6 @@ $('sair').addEventListener('click', async () => {
   await api('/api/painel/sair', { method: 'POST', body: {} }).catch(() => {});
   mostrarLogin();
 });
-
-// ---------- Abas ----------
 
 const ABAS = ['pedidos', 'relatorios', 'produtos', 'whatsapp'];
 
@@ -164,8 +157,6 @@ document.querySelectorAll('[role=tab]').forEach((b) => {
   });
 });
 
-// ---------- Indicadores ----------
-
 function desenharKpis(alvo, kpis) {
   alvo.replaceChildren(
     ...kpis.map(([rotulo, valor, detalhe, destaque]) => {
@@ -183,8 +174,6 @@ function desenharKpis(alvo, kpis) {
 const textoPagamentos = (r, nomes) =>
   Object.entries(nomes.pagamentos).map(([k, n]) => `${n} ${r.porPagamento[k].pedidos}`).join(' · ');
 
-// ---------- Pedidos do dia ----------
-
 function cartaoDoPedido(p, nomes) {
   const el = document.createElement('article');
   el.className = 'pedido' + (p.situacao === 'cancelado' ? ' cancelado' : '');
@@ -200,7 +189,6 @@ function cartaoDoPedido(p, nomes) {
   el.querySelector('.qtd').textContent = `${p.quantidade}x ${p.produtoNome}`;
   let pag = nomes.pagamentos[p.pagamento];
   if (p.pagamento === 'dinheiro' && p.troco) pag += ` · troco p/ ${reais(p.troco)}`;
-  // Pix pago pelo site: a situação vem do Mercado Pago.
   const PIX = {
     aguardando: ['⏳ aguardando pagamento', 'pix-aguardando'],
     pago: ['✅ pago pelo site', 'pix-pago'],
@@ -380,8 +368,6 @@ $('rel-enviar').addEventListener('click', (e) => {
   });
 });
 
-// ---------- Relatórios por período ----------
-
 function calcularPeriodo(preset, hoje) {
   if (preset === '7') return { de: somarDias(hoje, -6), ate: hoje };
   if (preset === '30') return { de: somarDias(hoje, -29), ate: hoje };
@@ -474,7 +460,6 @@ function listaBarras(ul, itens, max, vazio) {
   );
 }
 
-// Gráfico de barras simples (valor vendido por dia; por mês em períodos longos).
 function agruparPorMes(porDia) {
   const meses = new Map();
   for (const l of porDia) {
@@ -607,8 +592,6 @@ $('per-form').addEventListener('submit', (e) => {
 });
 $('per-imprimir').addEventListener('click', () => window.print());
 
-// ---------- Produtos ----------
-
 const decimal = (v) => (v === null || v === undefined || v === '' ? '' : Number(v).toFixed(2).replace('.', ','));
 
 function linhaDoProduto(p = { nome: '', detalhe: '', preco: '', precoAntigo: null, ativo: true }) {
@@ -684,8 +667,6 @@ $('cat-form').addEventListener('submit', (e) => {
     }
   });
 });
-
-// ---------- WhatsApp ----------
 
 const NOMES_ESTADO = {
   conectado: 'Conectado',
@@ -802,8 +783,6 @@ $('rel-config').addEventListener('submit', (e) => {
     await carregarWhatsapp();
   });
 });
-
-// ---------- Tempo real ----------
 
 function ouvir() {
   estado.eventos?.close();

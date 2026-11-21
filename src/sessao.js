@@ -1,11 +1,12 @@
-// Login do painel: senha única (PAINEL_SENHA) e cookie assinado com HMAC.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const DURACAO = 12 * 60 * 60 * 1000;
 const hash = (v) => createHash('sha256').update(String(v)).digest();
 
 export function criarSessoes({ senha, segredo = randomBytes(32).toString('hex'), agora = () => Date.now() }) {
-  const assinar = (v) => createHmac('sha256', segredo).update(v).digest('base64url');
+  // A chave depende da senha: trocar PAINEL_SENHA derruba todas as sessões abertas.
+  const chave = createHmac('sha256', segredo).update(`painel:${senha ?? ''}`).digest();
+  const assinar = (v) => createHmac('sha256', chave).update(v).digest('base64url');
 
   return {
     habilitado: Boolean(senha),
@@ -37,13 +38,15 @@ export function lerCookie(req, nome) {
   return null;
 }
 
-// Limite simples por IP (janela fixa), em memória.
 export function criarLimite({ maximo, janela }) {
   const contagem = new Map();
   return (chave, agora = Date.now()) => {
     const atual = contagem.get(chave);
     if (!atual || atual.fim < agora) {
-      if (contagem.size > 5000) contagem.clear();
+      if (contagem.size > 5000) {
+        for (const [k, v] of contagem) if (v.fim < agora) contagem.delete(k);
+        if (contagem.size > 5000) contagem.clear();
+      }
       contagem.set(chave, { n: 1, fim: agora + janela });
       return true;
     }

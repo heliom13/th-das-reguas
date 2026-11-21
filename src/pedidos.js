@@ -1,4 +1,3 @@
-// Regras do pedido: catálogo, validação e cálculo do total no servidor.
 // O preço nunca vem do navegador.
 import { randomBytes } from 'node:crypto';
 
@@ -29,7 +28,6 @@ const texto = (v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : ''
 const proprio = (obj, k) => (Object.prototype.hasOwnProperty.call(obj, k) ? obj[k] : undefined);
 export const centavos = (v) => Math.round(v * 100) / 100;
 
-// Dia e hora no fuso da loja (São Luís, UTC-3).
 export function diaLocal(data = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: FUSO, year: 'numeric', month: '2-digit', day: '2-digit' }).format(data);
 }
@@ -118,7 +116,6 @@ function lerPreco(v) {
 const slug = (nome) =>
   nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'produto';
 
-// Valida o catálogo editado no painel.
 export function validarCatalogo(dados) {
   const erros = [];
   const lista = dados && Array.isArray(proprio(dados, 'produtos')) ? proprio(dados, 'produtos') : null;

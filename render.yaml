@@ -23,3 +23,8 @@ services:
         sync: false
       - key: SEGREDO_SESSAO
         generateValue: true
+      # Pix pelo site (Mercado Pago): Access Token de produção e assinatura secreta dos webhooks
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_WEBHOOK_SECRET
+        sync: false

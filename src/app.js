@@ -1,4 +1,3 @@
-// Servidor HTTP: site público, API de pedidos e painel do dono.
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
@@ -24,6 +23,21 @@ const DIA_VALIDO = /^\d{4}-\d{2}-\d{2}$/;
 const HORARIO_VALIDO = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MAX_DIAS_PERIODO = 366;
 const NOMES = { pagamentos: PAGAMENTOS, retiradas: RETIRADAS, situacoes: SITUACOES };
+
+const POLITICA_BASE = [
+  "default-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  'font-src https://fonts.gstatic.com',
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "frame-ancestors 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+// O site tem script dentro do HTML; o painel só carrega /painel.js.
+const POLITICA_SITE = `${POLITICA_BASE}; script-src 'self' 'unsafe-inline'`;
+const POLITICA_PAINEL = `${POLITICA_BASE}; script-src 'self'`;
 
 class ErroHttp extends Error {
   constructor(status, mensagem) {
@@ -57,10 +71,10 @@ async function lerCorpo(req, limite = 10_000) {
   }
 }
 
-// IP real do cliente atrás do Cloudflare/Render.
+// IP real do cliente atrás do Cloudflare/Render. O True-Client-IP não é usado:
+// o próprio visitante pode enviá-lo e escapar do limite de tentativas.
 const ipDe = (req) =>
   req.headers['cf-connecting-ip'] ||
-  req.headers['true-client-ip'] ||
   String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() ||
   req.socket.remoteAddress;
 
@@ -85,15 +99,19 @@ export function criarApp({
   const limitePedidos = criarLimite({ maximo: 20, janela: 10 * 60_000 });
   const limiteConsultaPix = criarLimite({ maximo: 300, janela: 10 * 60_000 });
   const limiteLogin = criarLimite({ maximo: 10, janela: 15 * 60_000 });
+  // Teto geral de tentativas de senha, somando todos os IPs (barra ataque distribuído).
+  const limiteLoginGeral = criarLimite({ maximo: 60, janela: 15 * 60_000 });
+  const limiteWebhook = criarLimite({ maximo: 600, janela: 10 * 60_000 });
 
   function avisar(tipo, dados = {}) {
     const linha = `event: ${tipo}\ndata: ${JSON.stringify(dados)}\n\n`;
     for (const res of ouvintes) res.write(linha);
   }
 
-  const logado = (req) => sessoes.valida(lerCookie(req, 'sessao'));
+  const NOME_COOKIE = producao ? '__Host-sessao' : 'sessao';
+  const logado = (req) => sessoes.valida(lerCookie(req, NOME_COOKIE));
   const cookie = (valor, maxAge) =>
-    `sessao=${valor}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${producao ? '; Secure' : ''}`;
+    `${NOME_COOKIE}=${valor}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${producao ? '; Secure' : ''}`;
 
   async function painelWhatsapp() {
     return {
@@ -105,7 +123,6 @@ export function criarApp({
     };
   }
 
-  // Aplica no pedido a situação do pagamento lida na API do Mercado Pago.
   // Valor diferente do total do pedido nunca vira "pago": fica marcado para o dono conferir.
   async function aplicarPagamento(pedido, pagamento) {
     let situacao = pagamento.situacao;
@@ -125,7 +142,6 @@ export function criarApp({
     return atualizado;
   }
 
-  // Conferência periódica: pega pagamentos cujo aviso (webhook) não chegou.
   async function conferirPixPendentes() {
     if (!pixOnline) return 0;
     const desde = new Date(agora().getTime() - 2 * 86_400_000);
@@ -142,7 +158,6 @@ export function criarApp({
     return conferidos;
   }
 
-  // Aviso no grupo a cada pedido (opcional). Nunca atrasa nem derruba o pedido do cliente.
   async function avisarNoGrupo(pedido) {
     const { avisarPedido } = await configRelatorio(banco);
     if (!avisarPedido || whatsapp.status().estado !== 'conectado') return;
@@ -164,6 +179,9 @@ export function criarApp({
     const info = await stat(arquivo).catch(() => null);
     if (!info?.isFile()) throw new ErroHttp(404, 'Não encontrado.');
     const tipo = TIPOS[extname(arquivo).toLowerCase()] ?? 'application/octet-stream';
+    if (tipo.startsWith('text/html')) {
+      res.setHeader('Content-Security-Policy', arquivo.endsWith(`${sep}painel.html`) ? POLITICA_PAINEL : POLITICA_SITE);
+    }
     res.writeHead(200, {
       'Content-Type': tipo,
       'Content-Length': info.size,
@@ -257,6 +275,7 @@ export function criarApp({
     // sempre relido na API antes de mudar o pedido: um aviso falso não marca nada como pago.
     'POST /webhooks/mercadopago': async (req, res, url) => {
       if (!pixOnline) throw new ErroHttp(404, 'Não encontrado.');
+      if (!limiteWebhook(ipDe(req))) throw new ErroHttp(429, 'Muitos avisos seguidos.');
       const corpo = await lerCorpo(req).catch(() => ({}));
       const tipo = url.searchParams.get('type') ?? url.searchParams.get('topic') ?? corpo.type;
       const id = url.searchParams.get('data.id') ?? url.searchParams.get('id') ?? corpo.data?.id;
@@ -275,9 +294,14 @@ export function criarApp({
 
     'POST /api/painel/entrar': async (req, res) => {
       if (!sessoes.habilitado) throw new ErroHttp(503, 'Painel sem senha configurada (PAINEL_SENHA).');
-      if (!limiteLogin(ipDe(req))) throw new ErroHttp(429, 'Muitas tentativas. Espere 15 minutos.');
+      const ip = ipDe(req);
+      if (!limiteLogin(ip) || !limiteLoginGeral('todos')) throw new ErroHttp(429, 'Muitas tentativas. Espere 15 minutos.');
       const { senha } = await lerCorpo(req);
-      if (!sessoes.conferirSenha(senha)) throw new ErroHttp(401, 'Senha incorreta.');
+      if (!sessoes.conferirSenha(senha)) {
+        log.warn?.(`Senha errada no painel (IP ${ip}).`);
+        throw new ErroHttp(401, 'Senha incorreta.');
+      }
+      log.info?.(`Entrada no painel (IP ${ip}).`);
       json(res, 200, { ok: true }, { 'Set-Cookie': cookie(sessoes.emitir(), sessoes.duracaoSegundos) });
     },
 
@@ -426,6 +450,9 @@ export function criarApp({
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    if (producao) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     let url;
     try {
       url = new URL(req.url, 'http://local');

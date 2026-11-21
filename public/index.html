@@ -15,7 +15,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* Layout: visual escuro de uma só tela, tirado do painel verde da barbearia e da caixa preta e laranja da touca; listras diagonais laranja/roxo como na embalagem */
 :root{
   color-scheme:dark;
   --bg:#04110F; --surface:#0A1D1A; --surface-2:#0F2B26; --ink:#F4F6F4; --muted:#9DB8B2; --line:#1A3A34;
@@ -42,11 +41,9 @@ p{margin:0}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 :focus-visible{outline:3px solid var(--amber);outline-offset:2px;border-radius:4px}
 
-/* Listras da embalagem */
 .streaks{height:10px;background:repeating-linear-gradient(-55deg,var(--amber) 0 10px,var(--black) 10px 22px,var(--plum) 22px 30px,var(--black) 30px 44px);background-size:76px 100%;animation:streak 4s linear infinite}
 @keyframes streak{to{background-position:76px 0}}
 
-/* Header */
 header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--black);border-bottom:1px solid var(--line)}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:14px}
 .logo{font-family:var(--f-display);font-weight:900;font-size:1.7rem;text-transform:uppercase;text-decoration:none;letter-spacing:.02em}
@@ -63,7 +60,6 @@ nav .btn{padding:9px 16px;color:var(--amber-ink)}
 nav .btn:hover{color:var(--amber-ink)}
 @media (max-width:760px){nav a:not(.btn){display:none}}
 
-/* Banner do topo, na linha da arte oficial: degradê verde-água para o escuro, nome vazado ao fundo */
 .banner{position:relative;overflow:hidden;isolation:isolate;
   background:
     linear-gradient(180deg,rgba(4,17,15,0) 55%,var(--bg) 100%),
@@ -88,7 +84,6 @@ nav .btn:hover{color:var(--amber-ink)}
 .hero-ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;justify-content:center}
 .hero-ctas .btn-ghost{border-color:rgba(255,255,255,.5)}
 
-/* Pilares */
 .pillars{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .pillar{padding:22px 22px 24px;display:grid;gap:6px;text-decoration:none}
 .pillar+.pillar{border-left:1px solid var(--line)}
@@ -100,7 +95,6 @@ nav .btn:hover{color:var(--amber-ink)}
 section{padding-block:80px}
 .sec-head{display:grid;gap:14px;margin-bottom:40px}
 
-/* Serviços (estilo painel da barbearia: nome branco, preço verde) */
 .menu{display:grid;grid-template-columns:1fr 1fr;gap:0 48px}
 .item{display:grid;grid-template-columns:1fr auto;gap:2px 16px;padding-block:18px;border-bottom:1px dashed var(--line)}
 .item h3{font-size:1.5rem}
@@ -109,7 +103,6 @@ section{padding-block:80px}
 .item .dur{font-family:var(--f-mono);font-size:.75rem;color:var(--muted);letter-spacing:.06em}
 @media (max-width:760px){.menu{grid-template-columns:1fr}}
 
-/* Agendamento */
 .booking{background:var(--surface)}
 .book-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:32px;align-items:start}
 .step{display:grid;gap:12px;margin-bottom:26px}
@@ -133,7 +126,6 @@ section{padding-block:80px}
 .note{font-size:.8rem;color:var(--muted)}
 @media (max-width:860px){.book-grid{grid-template-columns:1fr}.summary{position:static}}
 
-/* Cursos */
 .courses{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
 .course{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:26px;display:grid;grid-template-rows:auto auto auto 1fr auto;gap:14px}
 .course.featured{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
@@ -149,7 +141,6 @@ section{padding-block:80px}
 .course .foot small{display:block;color:var(--muted);font-size:.78rem;font-family:var(--f-body);font-weight:500;margin-top:4px}
 @media (max-width:900px){.courses{grid-template-columns:1fr}}
 
-/* Loja touca (embalagem: preto + laranja) */
 .shop{background:var(--black);position:relative;overflow:hidden}
 .shop::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(-55deg,transparent 0 60px,rgba(243,154,45,.07) 60px 64px,transparent 64px 120px,rgba(59,45,92,.25) 120px 132px);pointer-events:none}
 .shop .wrap{position:relative}
@@ -162,7 +153,6 @@ section{padding-block:80px}
 .sizes{margin-bottom:56px}
 .sizes h3{margin-bottom:8px}
 .sizes-lead{color:var(--muted);max-width:62ch;margin:0 0 20px}
-/* No celular vira carrossel com rolagem lateral; no computador, cinco colunas */
 .sizes-list{list-style:none;margin:0;padding:0 0 8px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,70%);gap:14px;overflow-x:auto;scroll-snap-type:x mandatory}
 .sizes-list li{scroll-snap-align:start}
 .sizes-list figure{margin:0;border:1px solid #2a2a2e;border-radius:16px;overflow:hidden;background:#121214;height:100%}
@@ -227,7 +217,6 @@ section{padding-block:80px}
 .done h3 span{color:var(--amber)}
 @media (max-width:860px){.product,.shop-grid{grid-template-columns:1fr}.box-img{max-height:420px}.buy{position:static}}
 
-/* Rodapé */
 footer{background:var(--black);padding-block:56px 40px;border-top:1px solid var(--line)}
 .foot-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:32px}
 footer h3{font-size:1.2rem;margin-bottom:10px}
@@ -240,11 +229,9 @@ footer ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
 @media (max-width:760px){.foot-grid{grid-template-columns:1fr}}
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:600;font-size:.9rem;z-index:40}
-/* WhatsApp flutuante */
 .wa-float{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:25;width:58px;height:58px;border-radius:50%;background:#25D366;display:grid;place-items:center;box-shadow:0 10px 30px rgba(0,0,0,.45)}
 .wa-float svg{width:30px;height:30px}
 
-/* Celular */
 @media (max-width:600px){
   body{font-size:15.5px}
   section{padding-block:52px}
@@ -546,7 +533,6 @@ const services = [
 document.getElementById("menu").innerHTML = services.map(s =>
   `<div class="item"><div><h3>${s.n}</h3><span class="dur">${s.d} min</span></div><span class="price">${brl(s.p)}</span><p>${s.t}</p></div>`).join("");
 
-// Agendamento
 const state = {serv:0, day:0, time:null};
 const DOW = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 // Atendimento só de quinta a sábado, das 9h às 12h e das 14h30 às 18h (próximas duas semanas)
@@ -687,7 +673,6 @@ buy.addEventListener("submit", async e => {
     botao.disabled = false; botao.textContent = "Fazer pedido";
   }
 });
-// Pix pago pelo site: mostra o QR Code e pergunta ao servidor se o pagamento já caiu.
 let pixTimer;
 function mostrarPix(resp, resumo, nome){
   const el = (id) => document.getElementById(id);

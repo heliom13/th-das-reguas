@@ -124,7 +124,6 @@ input[type=date],input[type=time]{color-scheme:dark}
 .toggle{display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer}
 .toggle input{width:20px;height:20px;accent-color:var(--amber);flex:0 0 auto}
 
-/* Relatórios */
 .periodo{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:6px}
 .per-datas{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
 .per-datas label{display:grid;gap:4px}
@@ -158,7 +157,6 @@ input[type=date],input[type=time]{color-scheme:dark}
 .acoes-rel{margin-top:16px}
 @media (max-width:520px){.tabela .opcional{display:none}.tabela th,.tabela td{padding:8px 6px}.card{padding:16px}}
 
-/* Produtos */
 .cat-lista{display:grid;gap:12px;margin-bottom:12px}
 .produto{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:4px}
 .produto.inativo{opacity:.65}

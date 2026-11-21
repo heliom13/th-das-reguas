@@ -1,11 +1,9 @@
-// Pix pelo Mercado Pago (API de pagamentos v1). Só liga com MP_ACCESS_TOKEN configurado.
 // O aviso (webhook) nunca é confiado sozinho: o pagamento é sempre consultado na API.
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const API = 'https://api.mercadopago.com';
 const VALIDADE_MINUTOS = 60;
 
-// Situação do pagamento no Mercado Pago → situação guardada no pedido.
 export function situacaoDoPagamento(status) {
   if (status === 'approved') return 'pago';
   if (status === 'refunded' || status === 'charged_back') return 'estornado';
@@ -62,8 +60,8 @@ export function criarMercadoPago({ token, segredoWebhook, urlNotificacao, fetchI
     habilitado: Boolean(token),
     webhookAssinado: Boolean(segredoWebhook),
 
-    // Cria a cobrança Pix do pedido. `referencia` liga o pagamento ao pedido e também
-    // serve de chave de idempotência (repetir a chamada não cobra duas vezes).
+    // `referencia` liga o pagamento ao pedido e é a chave de idempotência
+    // (repetir a chamada não cobra duas vezes).
     async criarPix({ referencia, valor, descricao, email, nome }) {
       const vence = new Date(agora().getTime() + VALIDADE_MINUTOS * 60_000);
       const [primeiro, ...resto] = nome.split(' ');

@@ -1,5 +1,3 @@
-// Armazenamento: Postgres (DATABASE_URL) em produção e memória em testes/dev.
-// As duas versões têm a mesma interface.
 import { randomUUID } from 'node:crypto';
 
 const MIGRACAO = `
@@ -181,8 +179,7 @@ export async function criarBancoPostgres(url, { log = console } = {}) {
       await pool.end().catch(() => {});
     },
 
-    // Trava de sessão do Postgres: só quem a detém conecta o WhatsApp.
-    // Ela some sozinha se o processo morrer ou a conexão cair.
+    // A trava some sozinha se o processo morrer ou a conexão cair.
     criarTrava() {
       let cliente = null;
       let pulso = null;

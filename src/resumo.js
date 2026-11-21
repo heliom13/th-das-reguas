@@ -27,7 +27,6 @@ export function montarResumo(pedidos) {
   return resumo;
 }
 
-// Uma linha por dia do período, incluindo os dias sem pedido.
 export function resumoPorDia(pedidos, de, ate) {
   const dias = new Map();
   for (let d = new Date(`${de}T12:00:00Z`); d <= new Date(`${ate}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) {
@@ -49,7 +48,6 @@ function descreverPagamento(p) {
   return txt;
 }
 
-// Pix pago pelo site (Mercado Pago): situação mostrada no aviso e no relatório.
 export const ROTULO_PIX = {
   aguardando: '(aguardando pagamento no site)',
   pago: '(pago pelo site ✅)',
@@ -58,7 +56,6 @@ export const ROTULO_PIX = {
   divergente: '(valor diferente, conferir!)',
 };
 
-// Texto enviado no grupo do WhatsApp e copiado pelo painel.
 export function textoDoRelatorio(pedidos, dia) {
   const lista = ativos(pedidos).sort((a, b) => a.numero - b.numero);
   const r = montarResumo(pedidos);
@@ -93,7 +90,6 @@ export function textoDoRelatorio(pedidos, dia) {
   return linhas.join('\n');
 }
 
-// Aviso curto no grupo quando entra um pedido (opcional).
 export function textoDoAviso(p) {
   const linhas = [
     p.pix?.situacao === 'pago' ? `💰 *Pix pago — Pedido #${p.numero}* — ${p.nome}` : `🆕 *Pedido #${p.numero}* — ${p.nome}`,

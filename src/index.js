@@ -46,8 +46,6 @@ const whatsapp = criarWhatsApp({ banco, log, aoMudar: (s) => app?.avisar('whatsa
 const agenda = criarAgenda({ banco, whatsapp, log, aoMudar: () => app?.avisar('whatsapp', whatsapp.status()) });
 const sessoes = criarSessoes({ senha: process.env.PAINEL_SENHA, segredo: process.env.SEGREDO_SESSAO || undefined });
 
-// Pix pelo site (Mercado Pago). Sem MP_ACCESS_TOKEN, o Pix continua sendo pago na
-// retirada/entrega, como antes. O aviso de pagamento vai para o endereço público do Render.
 const enderecoPublico = (process.env.SITE_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
 const pagamentos = criarMercadoPago({
   token: process.env.MP_ACCESS_TOKEN,

@@ -9,6 +9,7 @@
 <link rel="icon" href="/icone.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icone-180.png">
 <link rel="manifest" href="/painel.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Pedidos TH">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,6 +24,7 @@
   <form id="login-form" class="card">
     <p class="logo">TH das <span>Réguas</span></p>
     <h1>Painel de pedidos</h1>
+    <input type="text" name="usuario" value="dono" autocomplete="username" hidden>
     <label class="field"><span>Senha</span><input type="password" name="senha" autocomplete="current-password" required></label>
     <p class="erro" id="login-erro" role="alert" hidden></p>
     <button class="btn btn-amber" type="submit">Entrar</button>
@@ -46,7 +48,6 @@
   <main class="wrap conteudo">
     <p class="aviso" id="aviso" role="status" hidden></p>
 
-    <!-- Pedidos do dia -->
     <section id="sec-pedidos" role="tabpanel" aria-labelledby="aba-pedidos">
       <div class="titulo">
         <h2>Resumo <span id="t-dia"></span></h2>
@@ -86,7 +87,6 @@
       </div>
     </section>
 
-    <!-- Relatórios por período -->
     <section id="sec-relatorios" role="tabpanel" aria-labelledby="aba-relatorios" hidden>
       <div class="titulo"><h2>Relatórios</h2></div>
       <div class="periodo">
@@ -140,7 +140,6 @@
       </div>
     </section>
 
-    <!-- Produtos -->
     <section id="sec-produtos" role="tabpanel" aria-labelledby="aba-produtos" hidden>
       <div class="titulo"><h2>Produtos</h2></div>
       <p class="sub">Os produtos ativos aparecem no site; com mais de um, o cliente escolhe no pedido. Preço antigo é opcional e mostra o selo "Promoção". Mudar o preço não altera pedidos já feitos.</p>
@@ -155,7 +154,6 @@
       </form>
     </section>
 
-    <!-- WhatsApp -->
     <section id="sec-whatsapp" role="tabpanel" aria-labelledby="aba-whatsapp" hidden>
       <div class="titulo"><h2>WhatsApp do robô</h2></div>
       <div class="duas">
